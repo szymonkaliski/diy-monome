@@ -1,0 +1,17 @@
+{
+  "name": "monome-csg-playground",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "budo index.js --port 3000 --live"
+  },
+  "dependencies": {
+    "@jscad/csg": "^0.3.7",
+    "lodash.times": "^4.3.2",
+    "three": "^0.88.0",
+    "three-orbitcontrols": "^2.0.0"
+  },
+  "devDependencies": {
+    "budo": "^10.0.4"
+  }
+}
