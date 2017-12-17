@@ -1,28 +1,40 @@
 const times = require("lodash.times");
-const { CSG, CAG } = require("@jscad/csg");
+const { CSG } = require("@jscad/csg");
 const createPreview = require("./preview");
 
-const RESOLUTION = 50;
+const BUTTON_SIZE = 1.5;
+const BUTTON_OFFSET = 1.0;
+const BUTTON_CASE_OFFSET = 0.5;
+const CASE_SIZE = 10;
 
-const BUTTON_SIZE = 1.4;
-const BUTTON_OFFSET = 0.8;
+const casing = CSG.cube({
+  corner1: [0, 0, -0.1],
+  corner2: [CASE_SIZE, CASE_SIZE, 0.0]
+});
 
-const casing = CSG.cube({ radius: [10, 10, 0.1] });
+let buttons = [];
 
 let model = casing;
 
 times(4).forEach(i =>
   times(4).forEach(j => {
-    const x = i * (BUTTON_SIZE * 2 + BUTTON_OFFSET);
-    const y = j * (BUTTON_SIZE * 2 + BUTTON_OFFSET);
+    const x = i * (BUTTON_SIZE + BUTTON_OFFSET) + BUTTON_CASE_OFFSET;
+    const y = j * (BUTTON_SIZE + BUTTON_OFFSET) + BUTTON_CASE_OFFSET;
 
     const button = CSG.cube({
-      radius: [BUTTON_SIZE, BUTTON_SIZE, 2],
-      center: [x - 3.2, y - 3.2, -1] // TODO: why 3.2?
-    });
+      corner1: [0, 0, 1],
+      corner2: [BUTTON_SIZE, BUTTON_SIZE, -1]
+    }).transform(CSG.Matrix4x4.translation([x, y, 0]));
+
+    buttons.push(button);
 
     model = model.subtract(button);
   })
 );
 
-createPreview(model.transform(CSG.Matrix4x4.rotationX(90)));
+const transformModel = model =>
+  model
+    .transform(CSG.Matrix4x4.translation([-CASE_SIZE / 2, -CASE_SIZE / 2, 0]))
+    .transform(CSG.Matrix4x4.rotationX(90));
+
+createPreview(transformModel(model), [...buttons].map(transformModel));
