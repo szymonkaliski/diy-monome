@@ -2,9 +2,111 @@
 # yarn lockfile v1
 
 
-"@jscad/csg@^0.3.7":
+"@jscad/amf-deserializer@^0.2.1":
+  version "0.2.1"
+  resolved "https://registry.yarnpkg.com/@jscad/amf-deserializer/-/amf-deserializer-0.2.1.tgz#a9fab9c317b708be884b983550125063ff3c36ad"
+  dependencies:
+    "@jscad/csg" "^0.3.6"
+    sax "^1.2.1"
+
+"@jscad/amf-serializer@^0.1.1":
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/@jscad/amf-serializer/-/amf-serializer-0.1.1.tgz#96dc41e9394112ead6a930be433f0209ac2fdd9b"
+  dependencies:
+    "@jscad/io-utils" "^0.1.2"
+    sax "^1.2.1"
+    xmldom "^0.1.27"
+
+"@jscad/csg@0.3.6":
+  version "0.3.6"
+  resolved "https://registry.yarnpkg.com/@jscad/csg/-/csg-0.3.6.tgz#4fc13667c4130b3010328d7587fe5d9328712ced"
+
+"@jscad/csg@^0.3.6", "@jscad/csg@^0.3.7":
   version "0.3.7"
   resolved "https://registry.yarnpkg.com/@jscad/csg/-/csg-0.3.7.tgz#47855c23a9fe2f20e971607417b807a1aedc57fc"
+
+"@jscad/dxf-serializer@^0.1.2":
+  version "0.1.2"
+  resolved "https://registry.yarnpkg.com/@jscad/dxf-serializer/-/dxf-serializer-0.1.2.tgz#9cb3314108c3092e4482b1b6fb071797dbddcc2d"
+
+"@jscad/gcode-deserializer@^0.2.0":
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/@jscad/gcode-deserializer/-/gcode-deserializer-0.2.0.tgz#fb7d564654daa187600773ca37673b8004370155"
+
+"@jscad/io-utils@^0.1.2":
+  version "0.1.2"
+  resolved "https://registry.yarnpkg.com/@jscad/io-utils/-/io-utils-0.1.2.tgz#82ec142583216a5bb9cdc263e91b0e25b1fe5917"
+
+"@jscad/io@^0.3.12":
+  version "0.3.12"
+  resolved "https://registry.yarnpkg.com/@jscad/io/-/io-0.3.12.tgz#d5e0cb5f373adf17ba6edfc4be6590da9ee98d77"
+  dependencies:
+    "@jscad/amf-deserializer" "^0.2.1"
+    "@jscad/amf-serializer" "^0.1.1"
+    "@jscad/dxf-serializer" "^0.1.2"
+    "@jscad/gcode-deserializer" "^0.2.0"
+    "@jscad/io-utils" "^0.1.2"
+    "@jscad/json-deserializer" "^0.1.1"
+    "@jscad/json-serializer" "^0.1.1"
+    "@jscad/obj-deserializer" "^0.2.1"
+    "@jscad/stl-deserializer" "^0.3.1"
+    "@jscad/stl-serializer" "^0.1.1"
+    "@jscad/svg-deserializer" "^0.4.1"
+    "@jscad/svg-serializer" "^0.1.1"
+    "@jscad/x3d-serializer" "^0.1.1"
+
+"@jscad/json-deserializer@^0.1.1":
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/@jscad/json-deserializer/-/json-deserializer-0.1.1.tgz#cd5fc43ca9adef79cf26ba8960c8b2ca1bfcc84d"
+  dependencies:
+    "@jscad/csg" "0.3.6"
+
+"@jscad/json-serializer@^0.1.1":
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/@jscad/json-serializer/-/json-serializer-0.1.1.tgz#2eeb1cfe8d608e9fed1a7f6fd725f7433da5ad51"
+  dependencies:
+    "@jscad/csg" "0.3.6"
+    "@jscad/io-utils" "^0.1.2"
+
+"@jscad/obj-deserializer@^0.2.1":
+  version "0.2.1"
+  resolved "https://registry.yarnpkg.com/@jscad/obj-deserializer/-/obj-deserializer-0.2.1.tgz#ffdd9149c57cad3fc0f669befa3a09c8ee29c01a"
+  dependencies:
+    "@jscad/csg" "^0.3.6"
+
+"@jscad/stl-deserializer@^0.3.1":
+  version "0.3.1"
+  resolved "https://registry.yarnpkg.com/@jscad/stl-deserializer/-/stl-deserializer-0.3.1.tgz#1f8f4d25b189ff08bb4265bcfbd40a8307b9a669"
+  dependencies:
+    "@jscad/csg" "0.3.6"
+    "@jscad/io-utils" "^0.1.2"
+
+"@jscad/stl-serializer@^0.1.1":
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/@jscad/stl-serializer/-/stl-serializer-0.1.1.tgz#e8ec2e44b019779d0ce8da11ca7f0d956a887b09"
+  dependencies:
+    "@jscad/io-utils" "^0.1.2"
+
+"@jscad/svg-deserializer@^0.4.1":
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/@jscad/svg-deserializer/-/svg-deserializer-0.4.1.tgz#4140dcf694edc02d123443825790b2e2e23aab1b"
+  dependencies:
+    "@jscad/csg" "0.3.6"
+    sax "1.2.4"
+
+"@jscad/svg-serializer@^0.1.1":
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/@jscad/svg-serializer/-/svg-serializer-0.1.1.tgz#05a64a240990b1640315f4fb601568ff2109ea79"
+  dependencies:
+    "@jscad/csg" "0.3.6"
+    onml "^0.4.1"
+
+"@jscad/x3d-serializer@^0.1.1":
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/@jscad/x3d-serializer/-/x3d-serializer-0.1.1.tgz#d6319dbc6662b754267a045275cf839178aab4ae"
+  dependencies:
+    "@jscad/io-utils" "^0.1.2"
+    xmldom "^0.1.27"
 
 JSONStream@^1.0.3:
   version "1.3.1"
@@ -1490,6 +1592,12 @@ once@~1.3.0:
   dependencies:
     wrappy "1"
 
+onml@^0.4.1:
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/onml/-/onml-0.4.1.tgz#d3de5ef226debf3a223149f58360487b7600b154"
+  dependencies:
+    sax "^1.2.1"
+
 opn@^3.0.2:
   version "3.0.3"
   resolved "https://registry.yarnpkg.com/opn/-/opn-3.0.3.tgz#b6d99e7399f78d65c3baaffef1fb288e9b85243a"
@@ -1908,6 +2016,10 @@ ripemd160@^2.0.0, ripemd160@^2.0.1:
 safe-buffer@^5.0.1, safe-buffer@^5.1.0, safe-buffer@^5.1.1, safe-buffer@~5.1.0, safe-buffer@~5.1.1:
   version "5.1.1"
   resolved "https://registry.yarnpkg.com/safe-buffer/-/safe-buffer-5.1.1.tgz#893312af69b2123def71f57889001671eeb2c853"
+
+sax@1.2.4, sax@^1.2.1:
+  version "1.2.4"
+  resolved "https://registry.yarnpkg.com/sax/-/sax-1.2.4.tgz#2816234e2378bddc4e5354fab5caa895df7100d9"
 
 "semver@2 || 3 || 4 || 5", semver@^5.3.0:
   version "5.4.1"
@@ -2347,6 +2459,10 @@ ws@^1.1.1:
   dependencies:
     options ">=0.0.5"
     ultron "1.0.x"
+
+xmldom@^0.1.27:
+  version "0.1.27"
+  resolved "https://registry.yarnpkg.com/xmldom/-/xmldom-0.1.27.tgz#d501f97b3bdb403af8ef9ecc20573187aadac0e9"
 
 "xtend@>=4.0.0 <4.1.0-0", xtend@^4.0.0, xtend@~4.0.1:
   version "4.0.1"

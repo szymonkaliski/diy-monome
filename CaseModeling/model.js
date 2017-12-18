@@ -1,6 +1,5 @@
 const times = require("lodash.times");
 const { CSG } = require("@jscad/csg");
-const createPreview = require("./preview");
 
 const BUTTON_SIZE = 1.5;
 const BUTTON_OFFSET = 1.0;
@@ -77,7 +76,10 @@ const transformModel = model =>
     )
     .transform(CSG.Matrix4x4.rotationX(90));
 
-createPreview(
-  transformModel(model),
-  [...buttons, ...screwes].map(transformModel)
-);
+const finalModel = transformModel(model);
+const finalParts = [...buttons, ...screwes].map(transformModel);
+
+module.exports = {
+  model: finalModel,
+  parts: finalParts
+};
