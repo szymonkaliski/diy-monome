@@ -54,12 +54,6 @@ const geometryFromPolygons = polygons => {
 };
 
 module.exports = (model, parts) => {
-  const modelPolygons = model.toPolygons();
-  const partsPolygons = parts.map(part => part.toPolygons());
-
-  const modelGeometry = geometryFromPolygons(modelPolygons);
-  const partsGeometries = partsPolygons.map(geometryFromPolygons);
-
   // camera
   const camera = new PerspectiveCamera(
     70,
@@ -81,23 +75,36 @@ module.exports = (model, parts) => {
   scene.add(directionalLight);
 
   // mesh
-  const material = new MeshLambertMaterial();
-  const mesh = new Mesh(modelGeometry, material);
-  scene.add(mesh);
+  if (model) {
+    const modelPolygons = model.toPolygons();
+    const modelGeometry = geometryFromPolygons(modelPolygons);
+
+    const material = new MeshLambertMaterial();
+    const mesh = new Mesh(modelGeometry, material);
+    scene.add(mesh);
+  }
 
   // wireframes
-  partsGeometries.forEach(geometry => {
-    const wireframe = new WireframeGeometry(geometry);
-    const line = new LineSegments(
-      wireframe,
-      new LineBasicMaterial({ color: 0x333333 })
-    );
-    scene.add(line);
-  });
+  if (parts) {
+    const partsPolygons = parts.map(part => part.toPolygons());
+    const partsGeometries = partsPolygons.map(geometryFromPolygons);
+
+    partsGeometries.forEach(geometry => {
+      const wireframe = new WireframeGeometry(geometry);
+      const line = new LineSegments(
+        wireframe,
+        new LineBasicMaterial({ color: 0x333333 })
+      );
+      scene.add(line);
+    });
+  }
 
   // grid
-  const grid = new GridHelper(100, 100);
-  scene.add(grid);
+  const gridMm = new GridHelper(100, 1000, 0xbbbbbb, 0xbbbbbb);
+  const gridCm = new GridHelper(100, 100, 0x888888, 0x888888);
+
+  scene.add(gridMm);
+  scene.add(gridCm);
 
   // renderer
   const renderer = new WebGLRenderer({ antialias: true });
@@ -107,8 +114,7 @@ module.exports = (model, parts) => {
 
   // orbit controls
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.25;
+  controls.enableDamping = false;
   controls.enableZoom = true;
 
   // css
