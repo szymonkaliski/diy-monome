@@ -1,15 +1,16 @@
 const times = require("lodash.times");
 const { CSG } = require("@jscad/csg");
 
-const BUTTON_SIZE = 1.5;
-const BUTTON_OFFSET = 1.0;
-const BUTTON_CASE_OFFSET = 0.5;
 const CASE_SIZE = 10;
-const SCREW_SIZE = 0.2;
+const CASE_HEIGHT = 0.5;
+const BUTTON_SIZE = 1.6;
+const BUTTON_OFFSET = 0.9;
+const BUTTON_CASE_OFFSET = 0.45;
+const SCREW_SIZE = 0.3;
 const MONOME_SIZE_MOD = 2; // 1 = 4x4, 2 = 8x8
 
 const casing = CSG.cube({
-  corner1: [0, 0, -0.1],
+  corner1: [0, 0, CASE_HEIGHT],
   corner2: [CASE_SIZE * MONOME_SIZE_MOD, CASE_SIZE * MONOME_SIZE_MOD, 0.0]
 });
 
