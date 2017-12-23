@@ -83,14 +83,11 @@ void turnOnLEDs() {
 }
 
 void setup() {
-  // Serial.begin(57600);
-  Serial.begin(115200);     // mext?
+  Serial.begin(115200);
 
   setupPins();
 
   clearLEDs();
-
-//   delay(250);
 }
 
 uint8_t readInt() {
@@ -99,6 +96,12 @@ uint8_t readInt() {
 
 void writeInt(uint8_t value) {
   Serial.write(value);
+}
+
+void serialEvent() {
+  do {
+    processSerial();
+  } while (Serial.available() > 16);
 }
 
 void processSerial() {
@@ -394,12 +397,6 @@ static void scanMatrix(int current) {
 }
 
 void loop() {
-  if (Serial.available() > 0) {
-    do {
-      processSerial();
-    } while(Serial.available() > 16);
-  }
-
   scanMatrix(current);
 
   current++;
