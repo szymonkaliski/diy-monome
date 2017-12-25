@@ -1,5 +1,5 @@
 {
-  "name": "monome-csg-playground",
+  "name": "arduinome-case-model",
   "version": "1.0.0",
   "scripts": {
     "start": "npm run preview",
