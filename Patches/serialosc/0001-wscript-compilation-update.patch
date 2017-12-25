@@ -1,0 +1,25 @@
+From e1bf35b1343f19a17d379aa0fefdbaa2ea532691 Mon Sep 17 00:00:00 2001
+From: Szymon Kaliski <hi@szymonkaliski.com>
+Date: Mon, 25 Dec 2017 13:19:06 +0100
+Subject: [PATCH] wscript compilation update
+
+---
+ wscript | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/wscript b/wscript
+index 0052af3..03fa15f 100644
+--- a/wscript
++++ b/wscript
+@@ -245,7 +245,7 @@ def configure(conf):
+ 		conf.define("SOSC_NO_ZEROCONF", True)
+ 		conf.env.SOSC_NO_ZEROCONF = True
+ 
+-	conf.env.append_unique("CFLAGS", ["-std=c99", "-Wall", "-Werror"])
++	conf.env.append_unique("CFLAGS", ["-std=c99", "-Wall", "-Werror", "-Wno-address-of-packed-member"])
+ 
+ 	conf.env.VERSION = VERSION
+ 
+-- 
+2.15.1
+

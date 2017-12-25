@@ -1,0 +1,40 @@
+From 9293596a9e17418251f1784dfc01d82763afdfb7 Mon Sep 17 00:00:00 2001
+From: Szymon Kaliski <hi@szymonkaliski.com>
+Date: Mon, 25 Dec 2017 13:21:24 +0100
+Subject: [PATCH] hacks for arduinome support without FTDI flashing
+
+---
+ src/private/devices.h | 3 +++
+ src/proto/mext.c      | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/private/devices.h b/src/private/devices.h
+index 403eb31..b6c034b 100644
+--- a/src/private/devices.h
++++ b/src/private/devices.h
+@@ -31,6 +31,9 @@ static monome_devmap_t mapping[] = {
+ 	 */
+ 	{"a40h%*1[-_]%d", "40h",    {8, 8},   "arduinome" , QUIRK_57600_BAUD},
+ 
++	/* hacked arduinome */
++	{"%d",      "mext",   {0, 0},   "monome i2c", NO_QUIRKS},
++
+ 	/* determine device dimensions in initialization */
+ 	{"m%d",     "mext",   {0, 0},   "monome i2c", NO_QUIRKS},
+ 
+diff --git a/src/proto/mext.c b/src/proto/mext.c
+index d47d54f..3b97534 100644
+--- a/src/proto/mext.c
++++ b/src/proto/mext.c
+@@ -592,7 +592,7 @@ static int mext_open(monome_t *monome, const char *dev, const char *serial,
+ 		QUERY_IF_NEEDED(MEXT_NEED_ID, CMD_SYSTEM_GET_ID);
+ 		QUERY_IF_NEEDED(MEXT_NEED_GRID_SIZE, CMD_SYSTEM_GET_GRIDSZ);
+ 
+-		if (monome_platform_wait_for_input(monome, 250) < 0
++		if (monome_platform_wait_for_input(monome, 250 * 10) < 0
+ 				|| mext_next_event(monome, &e) < 0)
+ 			return -1;
+ 	} while( self->need_responses );
+-- 
+2.15.1
+
