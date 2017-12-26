@@ -8,7 +8,7 @@ const modelScriptPath = `./${path.basename(process.argv[2])}`;
 
 const { CSG } = require("@jscad/csg");
 const { stlSerializer } = require("@jscad/io");
-const { model } = require(modelScriptPath);
+const { model } = require(modelScriptPath)();
 const fs = require("fs");
 
 const MM = 10;

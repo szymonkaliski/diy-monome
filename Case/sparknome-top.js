@@ -1,86 +1,47 @@
 const times = require("lodash.times");
 const { CSG } = require("@jscad/csg");
+const {
+  genCasing,
+  genScrewes,
+  transformModelForPreview,
 
-const CASE_SIZE = 10;
-const CASE_HEIGHT = 0.5;
-const BUTTON_SIZE = 1.6;
-const BUTTON_OFFSET = 0.9;
-const BUTTON_CASE_OFFSET = 0.45;
-const SCREW_SIZE = 0.3;
-const MONOME_SIZE_MOD = 2; // 1 = 4x4, 2 = 8x8
+  BUTTON_SIZE,
+  BUTTON_OFFSET,
+  BUTTON_CASE_OFFSET,
+  MONOME_SIZE_MOD
+} = require("./sparknome-common");
 
-const casing = CSG.cube({
-  corner1: [0, 0, CASE_HEIGHT],
-  corner2: [CASE_SIZE * MONOME_SIZE_MOD, CASE_SIZE * MONOME_SIZE_MOD, 0.0]
-});
+module.exports = () => {
+  let casing = genCasing();
 
-let buttons = [];
+  // button holes
+  let buttons = [];
 
-// button holes
-let model = casing;
+  times(4 * MONOME_SIZE_MOD).forEach(i =>
+    times(4 * MONOME_SIZE_MOD).forEach(j => {
+      const x = i * (BUTTON_SIZE + BUTTON_OFFSET) + BUTTON_CASE_OFFSET;
+      const y = j * (BUTTON_SIZE + BUTTON_OFFSET) + BUTTON_CASE_OFFSET;
 
-times(4 * MONOME_SIZE_MOD).forEach(i =>
-  times(4 * MONOME_SIZE_MOD).forEach(j => {
-    const x = i * (BUTTON_SIZE + BUTTON_OFFSET) + BUTTON_CASE_OFFSET;
-    const y = j * (BUTTON_SIZE + BUTTON_OFFSET) + BUTTON_CASE_OFFSET;
+      const button = CSG.cube({
+        corner1: [0, 0, 1],
+        corner2: [BUTTON_SIZE, BUTTON_SIZE, -1]
+      }).transform(CSG.Matrix4x4.translation([x, y, 0]));
 
-    const button = CSG.cube({
-      corner1: [0, 0, 1],
-      corner2: [BUTTON_SIZE, BUTTON_SIZE, -1]
-    }).transform(CSG.Matrix4x4.translation([x, y, 0]));
+      buttons.push(button);
 
-    buttons.push(button);
+      casing = casing.subtract(button);
+    })
+  );
 
-    model = model.subtract(button);
-  })
-);
+  // screwes
+  const { model, screwes } = genScrewes(casing);
 
-// screw holes
-let screwes = [];
+  // final model
+  const finalModel = transformModelForPreview(model);
+  const finalParts = [...buttons, ...screwes].map(transformModelForPreview);
 
-const fourScrewes = (offset = [0, 0]) => {
-  times(2 * MONOME_SIZE_MOD).forEach(i => {
-    times(2 * MONOME_SIZE_MOD).forEach(j => {
-      const ox = offset[0] + 0.1 + i * CASE_SIZE / 2;
-      const oy = offset[1] + 0.1 + j * CASE_SIZE / 2;
-
-      const screw = CSG.cylinder({
-        start: [0, 0, 1],
-        end: [SCREW_SIZE, SCREW_SIZE, -1],
-        radius: SCREW_SIZE / 2
-      }).transform(CSG.Matrix4x4.translation([ox, oy, 0]));
-
-      screwes.push(screw);
-
-      model = model.subtract(screw);
-    });
-  });
-};
-
-fourScrewes([0, 0]);
-fourScrewes([CASE_SIZE / 2 - 0.1 * 2 - SCREW_SIZE, 0]);
-fourScrewes([0, CASE_SIZE / 2 - 0.1 * 2 - SCREW_SIZE]);
-fourScrewes([
-  CASE_SIZE / 2 - 0.1 * 2 - SCREW_SIZE,
-  CASE_SIZE / 2 - 0.1 * 2 - SCREW_SIZE
-]);
-
-// final model
-const transformModel = model =>
-  model
-    .transform(
-      CSG.Matrix4x4.translation([
-        -CASE_SIZE * MONOME_SIZE_MOD / 2,
-        -CASE_SIZE * MONOME_SIZE_MOD / 2,
-        0
-      ])
-    )
-    .transform(CSG.Matrix4x4.rotationX(90));
-
-const finalModel = transformModel(model);
-const finalParts = [...buttons, ...screwes].map(transformModel);
-
-module.exports = {
-  model: finalModel,
-  parts: finalParts
+  return {
+    model: finalModel,
+    parts: finalParts
+  };
 };
