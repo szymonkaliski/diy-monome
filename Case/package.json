@@ -1,10 +1,14 @@
 {
-  "name": "arduinome-case-model",
+  "name": "case",
   "version": "1.0.0",
   "scripts": {
     "start": "npm run preview",
     "preview": "budo web.js --port 3000 --live",
-    "export": "node export.js"
+    "export:sparknome-top": "node export.js sparknome-top.js",
+    "export:sparknome-bottom": "node export.js sparknome-bottom.js",
+    "export:trellinome-top": "node export.js trellinome-top.js",
+    "export:trellinome-bottom": "node export.js trellinome-bottom.js",
+    "export:all": "npm run export:sparknome-top; npm run export:sparknome-bottom; npm run export:trellinome-top; npm run export:trellinome-bottom"
   },
   "dependencies": {
     "@jscad/csg": "^0.3.7",
