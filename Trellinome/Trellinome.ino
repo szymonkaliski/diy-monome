@@ -1,8 +1,8 @@
 #include <Wire.h>
 #include "Adafruit_Trellis.h"
 
-#define NUM_TRELLIS 4
-#define NUM_KEYS (NUM_TRELLIS * 16)
+#define NUM_TRELLIS (4)
+#define NUM_KEYS    (NUM_TRELLIS * 16)
 
 Adafruit_Trellis matrix0 = Adafruit_Trellis();
 Adafruit_Trellis matrix1 = Adafruit_Trellis();
@@ -340,11 +340,6 @@ void processSerial() {
       break;
   }
 
-  // write changes to Trellis only for set LED functions
-  if (identifierSent >> 4 == 0x01) {
-    trellis.writeDisplay();
-  }
-
   return;
 }
 
@@ -379,13 +374,16 @@ void loop() {
 
   }
 
-  if (now - prevTime >= 20) {
+  if (now - prevTime >= 30) {
     if (trellis.readSwitches()) {
       readKeys();
     }
 
+    // write display overy 30ms or so; if we write in processSerial() then fast serial access will hang arduino
+    trellis.writeDisplay();
+
     prevTime = now;
   }
 
-  delay(11);
+  delay(1);
 }
