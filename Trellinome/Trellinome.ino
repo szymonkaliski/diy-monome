@@ -1,70 +1,90 @@
-#define NUM_LED_COLUMNS (8)
-#define NUM_LED_ROWS    (8)
-#define NUM_BTN_COLUMNS (8)
-#define NUM_BTN_ROWS    (8)
-#define NUM_KEYS        (64)
-#define MAX_DEBOUNCE    (3)
+#include <Wire.h>
+#include "Adafruit_Trellis.h"
 
-static bool   ledBuffer[NUM_LED_COLUMNS][NUM_LED_ROWS];
-static int8_t debounceCount[NUM_BTN_COLUMNS][NUM_BTN_ROWS];
+#define NUM_TRELLIS 4
+#define NUM_KEYS (NUM_TRELLIS * 16)
 
-static const uint8_t BTN_COLUMN_PIN[NUM_BTN_COLUMNS] = { 53, 51, 49, 47, 45, 43, 41, 39 };
-static const uint8_t BTN_ROW_PIN[NUM_BTN_ROWS]       = { 37, 35, 33, 31, 29, 27, 25, 23 };
-static const uint8_t LED_COLUMN_PIN[NUM_LED_COLUMNS] = { 52, 50, 48, 46, 44, 42, 40, 38 };
-static const uint8_t LED_ROW_PIN[NUM_LED_ROWS]       = { 36, 34, 32, 30, 28, 26, 24, 22 };
+Adafruit_Trellis matrix0 = Adafruit_Trellis();
+Adafruit_Trellis matrix1 = Adafruit_Trellis();
+Adafruit_Trellis matrix2 = Adafruit_Trellis();
+Adafruit_Trellis matrix3 = Adafruit_Trellis();
 
-uint8_t current = 0; // current matrix scan position
+Adafruit_TrellisSet trellis = Adafruit_TrellisSet(&matrix0, &matrix1, &matrix2, &matrix3);
+
+unsigned long prevTime;
 
 String deviceID  = "monome";
 String serialNum = "m1000009";
 
-static void setupPins() {
-  uint8_t i, j;
+// these functions are from Adafruit_UNTZtrument.h
+static const uint8_t PROGMEM
+  i2xy64[] = {
+    0x00, 0x10, 0x20, 0x30, 0x01, 0x11, 0x21, 0x31,
+    0x02, 0x12, 0x22, 0x32, 0x03, 0x13, 0x23, 0x33,
+    0x40, 0x50, 0x60, 0x70, 0x41, 0x51, 0x61, 0x71,
+    0x42, 0x52, 0x62, 0x72, 0x43, 0x53, 0x63, 0x73,
+    0x04, 0x14, 0x24, 0x34, 0x05, 0x15, 0x25, 0x35,
+    0x06, 0x16, 0x26, 0x36, 0x07, 0x17, 0x27, 0x37,
+    0x44, 0x54, 0x64, 0x74, 0x45, 0x55, 0x65, 0x75,
+    0x46, 0x56, 0x66, 0x76, 0x47, 0x57, 0x67, 0x77
+  },
+  xy2i64[8][8] = {
+    {  0,  1,  2,  3, 16, 17, 18, 19 },
+    {  4,  5,  6,  7, 20, 21, 22, 23 },
+    {  8,  9, 10, 11, 24, 25, 26, 27 },
+    { 12, 13, 14, 15, 28, 29, 30, 31 },
+    { 32, 33, 34, 35, 48, 49, 50, 51 },
+    { 36, 37, 38, 39, 52, 53, 54, 55 },
+    { 40, 41, 42, 43, 56, 57, 58, 59 },
+    { 44, 45, 46, 47, 60, 61, 62, 63 }
+  };
 
-  for (i = 0; i < NUM_LED_COLUMNS; i++) {
-    pinMode(LED_COLUMN_PIN[i], OUTPUT);
-    digitalWrite(LED_COLUMN_PIN[i], HIGH);
+uint8_t xy2i(uint8_t x, uint8_t y) {
+	if (x > 7 || y > 7) {
+    return 255;
   }
 
-  for (i = 0; i < NUM_BTN_COLUMNS; i++) {
-    pinMode(BTN_COLUMN_PIN[i], OUTPUT);
-    digitalWrite(BTN_COLUMN_PIN[i], HIGH);
-  }
+  return pgm_read_byte(&xy2i64[y][x]);
+}
 
-  for (i = 0; i < NUM_BTN_ROWS; i++) {
-    pinMode(BTN_ROW_PIN[i], INPUT_PULLUP);
-  }
+void i2xy(uint8_t i, uint8_t *x, uint8_t *y) {
+	if (i > NUM_KEYS) {
+		*x = *y = 255;
+		return;
+	}
 
-  for (i = 0; i < NUM_LED_ROWS; i++) {
-    pinMode(LED_ROW_PIN[i], OUTPUT);
-    digitalWrite(LED_ROW_PIN[i], LOW);
-  }
+	uint8_t xy = pgm_read_byte(&i2xy64[i]);
 
-  for (i = 0; i < NUM_BTN_COLUMNS; i++) {
-    for (j = 0; j < NUM_BTN_ROWS; j++) {
-      debounceCount[i][j] = 0;
-    }
-  }
+	*x = xy >> 4;
+	*y = xy & 15;
 }
 
 void setLED(int x, int y, int v) {
-  if (x >= 0 && x < 8 && y >= 0 && y < 8) {
-    ledBuffer[x][y] = v;
+  if (v > 0) {
+    trellis.setLED(xy2i(x, y));
+  }
+  else {
+    trellis.clrLED(xy2i(x, y));
   }
 }
 
-void setAllLEDs(int value) {
+void setAllLEDs(int v) {
+  if (v == 0) {
+    turnOffLEDs();
+    return;
+  }
+
   uint8_t i, j;
 
-  for (i = 0; i < NUM_LED_COLUMNS; i++) {
-    for (j = 0; j < NUM_LED_ROWS; j++) {
-      ledBuffer[i][j] = value;
+  for (i = 0; i < 8; i++) {
+    for (j = 0; j < 8; j++) {
+      trellis.setLED(xy2i(i, j));
     }
   }
 }
 
 void turnOffLEDs() {
-  setAllLEDs(0);
+  trellis.clear();
 }
 
 void turnOnLEDs() {
@@ -74,8 +94,11 @@ void turnOnLEDs() {
 void setup() {
   Serial.begin(115200);
 
-  setupPins();
+  // set by testing button offsets...
+  trellis.begin(0x71, 0x70, 0x73, 0x72);
+
   turnOffLEDs();
+  trellis.writeDisplay();
 }
 
 uint8_t readInt() {
@@ -84,12 +107,6 @@ uint8_t readInt() {
 
 void writeInt(uint8_t value) {
   Serial.write(value);
-}
-
-void serialEvent() {
-  do {
-    processSerial();
-  } while (Serial.available() > 16);
 }
 
 void processSerial() {
@@ -190,9 +207,6 @@ void processSerial() {
       readX = readInt();
       readY = readInt();
 
-      readX >> 3; readX << 3;                 // floor to multiple of 8
-      readY >> 3; readY << 3;
-
       if (readX == 8 && NUM_KEYS > 64) break; // trying to set an 8x16 grid on a pad with only 64 keys
       if (readY != 0) break;                  // since we only have 8 LEDs in a column, no offset
 
@@ -211,7 +225,6 @@ void processSerial() {
 
     case 0x15:
       readX = readInt();                      // led-grid / set row
-      readX >> 3; readX << 3;
       readY = readInt();                      // may be any value
       intensity = readInt();                  // read one byte of 8 bits on/off
 
@@ -228,9 +241,8 @@ void processSerial() {
     case 0x16:
       readX = readInt();                      // led-grid / column set
       readY = readInt();
-
-      readY >> 3 ; readY << 3;                // floor to multiple of 8
       intensity = readInt();                  // read one byte of 8 bits on/off
+
       if (readY != 0) break;                  // we only have 8 lights in a column
 
       for (i = 0; i < 8; i++) {               // for the next 8 lights in column
@@ -274,9 +286,6 @@ void processSerial() {
       readX = readInt();
       readY = readInt();
 
-      readX << 3; readX >> 3;
-      readY << 3; readY >> 3;
-
       for (y = 0; y < 8; y++) {
         for (x = 0; x < 8; x++) {
           if ((x + y) % 2 == 0) {             // even bytes, use upper nybble
@@ -305,8 +314,6 @@ void processSerial() {
       readX = readInt();
       readY = readInt();
 
-      readX << 3; readX >> 3;
-
       for (x = 0; x < 8; x++) {
         intensity = readInt();
 
@@ -319,8 +326,6 @@ void processSerial() {
     case 0x1C:                                // set 1x8 column by intensity
       readX = readInt();
       readY = readInt();
-
-      readY << 3; readY >> 3;
 
       for (y = 0; y < 8; y++) {
         intensity = readInt();
@@ -335,72 +340,52 @@ void processSerial() {
       break;
   }
 
+  // write changes to Trellis only for set LED functions
+  if (identifierSent >> 4 == 0x01) {
+    trellis.writeDisplay();
+  }
+
   return;
 }
 
-static void scanMatrix(int current) {
-  uint8_t btnVal, i, j;
+void readKeys() {
+  uint8_t x, y;
 
-  // select current columns
-  digitalWrite(BTN_COLUMN_PIN[current], LOW);
-  digitalWrite(LED_COLUMN_PIN[current], LOW);
+  for (uint8_t i = 0; i < NUM_KEYS; i++) {
+    if (trellis.justPressed(i)) {
+      i2xy(i, &x, &y);
 
-  // output LED row values
-  for (i = 0; i < NUM_LED_ROWS; i++) {
-    if (ledBuffer[current][i] > 0) {
-      digitalWrite(LED_ROW_PIN[i], HIGH);
+      writeInt(0x21);
+      writeInt(x);
+      writeInt(y);
     }
-  }
+    else if (trellis.justReleased(i)) {
+      i2xy(i, &x, &y);
 
-  delay(1);
-
-  // read the button inputs
-   for (j = 0; j < NUM_BTN_ROWS; j++) {
-     btnVal = digitalRead(BTN_ROW_PIN[j]);
-
-     if (btnVal == LOW) {
-       // button pressed
-       if (debounceCount[current][j] < MAX_DEBOUNCE) {
-         debounceCount[current][j]++;
-
-         if (debounceCount[current][j] == MAX_DEBOUNCE) {
-           // send button coords
-           Serial.write(0x21);
-           Serial.write(current);
-           Serial.write(j);
-         }
-       }
-     }
-     else {
-       // button released
-       if (debounceCount[current][j] > 0) {
-         debounceCount[current][j]--;
-
-         if (debounceCount[current][j] == 0) {
-           // send button coords
-           Serial.write(0x20);
-           Serial.write(current);
-           Serial.write(j);
-         }
-       }
-     }
-   }
-
-  delay(1);
-
-  digitalWrite(BTN_COLUMN_PIN[current], HIGH);
-  digitalWrite(LED_COLUMN_PIN[current], HIGH);
-
-  for (i = 0; i < NUM_LED_ROWS; i++) {
-    digitalWrite(LED_ROW_PIN[i], LOW);
+      writeInt(0x20);
+      writeInt(x);
+      writeInt(y);
+    }
   }
 }
 
 void loop() {
-  scanMatrix(current);
+  unsigned long now = millis();
 
-  current++;
-  if (current >= NUM_LED_COLUMNS) {
-    current = 0;
+  if (Serial.available() > 0) {
+    do {
+      processSerial();
+    } while (Serial.available() > 16);
+
   }
+
+  if (now - prevTime >= 20) {
+    if (trellis.readSwitches()) {
+      readKeys();
+    }
+
+    prevTime = now;
+  }
+
+  delay(11);
 }
