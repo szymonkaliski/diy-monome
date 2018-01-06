@@ -1,10 +1,11 @@
 const times = require("lodash.times");
 const { CSG } = require("@jscad/csg");
-const {
-  genCasing,
-  genScrewes,
-  transformModelForPreview,
+const { genCasing, transformModelForPreview } = require("./common");
 
+const {
+  genScrewes,
+  CASE_SIZE,
+  CASE_HEIGHT,
   BUTTON_SIZE,
   BUTTON_OFFSET,
   BUTTON_CASE_OFFSET,
@@ -12,7 +13,10 @@ const {
 } = require("./sparknome-common");
 
 module.exports = () => {
-  let casing = genCasing();
+  let casing = genCasing({
+    caseHeight: CASE_HEIGHT,
+    caseSize: CASE_SIZE * MONOME_SIZE_MOD
+  });
 
   // button holes
   let buttons = [];
@@ -37,8 +41,13 @@ module.exports = () => {
   const { model, screwes } = genScrewes(casing);
 
   // final model
-  const finalModel = transformModelForPreview(model);
-  const finalParts = [...buttons, ...screwes].map(transformModelForPreview);
+  const finalModel = transformModelForPreview(model, {
+    caseSize: CASE_SIZE * MONOME_SIZE_MOD
+  });
+
+  const finalParts = [...buttons, ...screwes].map(model =>
+    transformModelForPreview(model, { caseSize: CASE_SIZE * MONOME_SIZE_MOD })
+  );
 
   return {
     model: finalModel,

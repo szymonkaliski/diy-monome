@@ -9,13 +9,6 @@ const BUTTON_CASE_OFFSET = 0.45;
 const SCREW_SIZE = 0.3;
 const MONOME_SIZE_MOD = 2; // 1 = 4x4, 2 = 8x8
 
-const genCasing = () => {
-  return CSG.cube({
-    corner1: [0, 0, -CASE_HEIGHT],
-    corner2: [CASE_SIZE * MONOME_SIZE_MOD, CASE_SIZE * MONOME_SIZE_MOD, 0.0]
-  });
-};
-
 const genScrewes = model => {
   // screw holes
   let screwes = [];
@@ -51,21 +44,8 @@ const genScrewes = model => {
   return { screwes, model };
 };
 
-const transformModelForPreview = model =>
-  model
-    .transform(
-      CSG.Matrix4x4.translation([
-        -CASE_SIZE * MONOME_SIZE_MOD / 2,
-        -CASE_SIZE * MONOME_SIZE_MOD / 2,
-        0
-      ])
-    )
-    .transform(CSG.Matrix4x4.rotationX(90));
-
 module.exports = {
-  genCasing,
   genScrewes,
-  transformModelForPreview,
 
   CASE_SIZE,
   CASE_HEIGHT,
