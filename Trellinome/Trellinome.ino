@@ -1,4 +1,3 @@
-#include <Wire.h>
 #include "Adafruit_Trellis.h"
 
 #define NUM_TRELLIS (4)
@@ -18,29 +17,29 @@ String serialNum = "m1000009";
 
 // these functions are from Adafruit_UNTZtrument.h
 static const uint8_t PROGMEM
-  i2xy64[] = {
-    0x00, 0x10, 0x20, 0x30, 0x01, 0x11, 0x21, 0x31,
-    0x02, 0x12, 0x22, 0x32, 0x03, 0x13, 0x23, 0x33,
-    0x40, 0x50, 0x60, 0x70, 0x41, 0x51, 0x61, 0x71,
-    0x42, 0x52, 0x62, 0x72, 0x43, 0x53, 0x63, 0x73,
-    0x04, 0x14, 0x24, 0x34, 0x05, 0x15, 0x25, 0x35,
-    0x06, 0x16, 0x26, 0x36, 0x07, 0x17, 0x27, 0x37,
-    0x44, 0x54, 0x64, 0x74, 0x45, 0x55, 0x65, 0x75,
-    0x46, 0x56, 0x66, 0x76, 0x47, 0x57, 0x67, 0x77
-  },
-  xy2i64[8][8] = {
-    {  0,  1,  2,  3, 16, 17, 18, 19 },
-    {  4,  5,  6,  7, 20, 21, 22, 23 },
-    {  8,  9, 10, 11, 24, 25, 26, 27 },
-    { 12, 13, 14, 15, 28, 29, 30, 31 },
-    { 32, 33, 34, 35, 48, 49, 50, 51 },
-    { 36, 37, 38, 39, 52, 53, 54, 55 },
-    { 40, 41, 42, 43, 56, 57, 58, 59 },
-    { 44, 45, 46, 47, 60, 61, 62, 63 }
-  };
+i2xy64[] = {
+  0x00, 0x10, 0x20, 0x30, 0x01, 0x11, 0x21, 0x31,
+  0x02, 0x12, 0x22, 0x32, 0x03, 0x13, 0x23, 0x33,
+  0x40, 0x50, 0x60, 0x70, 0x41, 0x51, 0x61, 0x71,
+  0x42, 0x52, 0x62, 0x72, 0x43, 0x53, 0x63, 0x73,
+  0x04, 0x14, 0x24, 0x34, 0x05, 0x15, 0x25, 0x35,
+  0x06, 0x16, 0x26, 0x36, 0x07, 0x17, 0x27, 0x37,
+  0x44, 0x54, 0x64, 0x74, 0x45, 0x55, 0x65, 0x75,
+  0x46, 0x56, 0x66, 0x76, 0x47, 0x57, 0x67, 0x77
+},
+xy2i64[8][8] = {
+  {  0,  1,  2,  3, 16, 17, 18, 19 },
+  {  4,  5,  6,  7, 20, 21, 22, 23 },
+  {  8,  9, 10, 11, 24, 25, 26, 27 },
+  { 12, 13, 14, 15, 28, 29, 30, 31 },
+  { 32, 33, 34, 35, 48, 49, 50, 51 },
+  { 36, 37, 38, 39, 52, 53, 54, 55 },
+  { 40, 41, 42, 43, 56, 57, 58, 59 },
+  { 44, 45, 46, 47, 60, 61, 62, 63 }
+};
 
 uint8_t xy2i(uint8_t x, uint8_t y) {
-	if (x > 7 || y > 7) {
+  if (x > 7 || y > 7) {
     return 255;
   }
 
@@ -48,15 +47,15 @@ uint8_t xy2i(uint8_t x, uint8_t y) {
 }
 
 void i2xy(uint8_t i, uint8_t *x, uint8_t *y) {
-	if (i > NUM_KEYS) {
-		*x = *y = 255;
-		return;
-	}
+  if (i > NUM_KEYS) {
+    *x = *y = 255;
+    return;
+  }
 
-	uint8_t xy = pgm_read_byte(&i2xy64[i]);
+  uint8_t xy = pgm_read_byte(&i2xy64[i]);
 
-	*x = xy >> 4;
-	*y = xy & 15;
+  *x = xy >> 4;
+  *y = xy & 15;
 }
 
 void setLED(int x, int y, int v) {
@@ -69,22 +68,22 @@ void setLED(int x, int y, int v) {
 }
 
 void setAllLEDs(int v) {
-  if (v == 0) {
-    turnOffLEDs();
-    return;
-  }
-
   uint8_t i, j;
 
   for (i = 0; i < 8; i++) {
     for (j = 0; j < 8; j++) {
-      trellis.setLED(xy2i(i, j));
+      if (v >= 1) {
+        trellis.setLED(xy2i(i, j));
+      }
+      else {
+        trellis.clrLED(xy2i(i, j));
+      }
     }
   }
 }
 
 void turnOffLEDs() {
-  trellis.clear();
+  setAllLEDs(0);
 }
 
 void turnOnLEDs() {
@@ -109,14 +108,14 @@ void writeInt(uint8_t value) {
   Serial.write(value);
 }
 
-void processSerial() {
-  uint8_t identifierSent;                     // command byte sent from controller to matrix
-  uint8_t deviceAddress;                      // device address sent from controller
-  uint8_t dummy;                              // for reading in data not used by the matrix
-  uint8_t intensity = 255;                    // led intensity, ignored
-  uint8_t readX, readY;                       // x and y values read from driver
-  uint8_t i, x, y;
+uint8_t identifierSent;                     // command byte sent from controller to matrix
+uint8_t deviceAddress;                      // device address sent from controller
+uint8_t dummy;                              // for reading in data not used by the matrix
+uint8_t intensity = 255;                    // led intensity, ignored
+uint8_t readX, readY;                       // x and y values read from driver
+uint8_t i, x, y;
 
+void processSerial() {
   identifierSent = Serial.read();             // get command identifier: first byte of packet is identifier in the form: [(a << 4) + b]
                                               // a = section (ie. system, key-grid, digital, encoder, led grid, tilt)
                                               // b = command (ie. query, enable, led, key, frame)
@@ -130,7 +129,7 @@ void processSerial() {
 
     case 0x01:
       writeInt((uint8_t)0x01);
-      for (i = 0; i < 32; i++) {              // has to 32
+      for (i = 0; i < 32; i++) {              // has to be 32
         if (i < deviceID.length()) {
           Serial.print(deviceID[i]);
         }
@@ -213,7 +212,7 @@ void processSerial() {
       for (y = 0; y < 8; y++) {               // each i will be a row
         intensity = readInt();                // read one byte of 8 bits on/off
         for (x = 0; x < 8; x++) {             // for 8 LEDs on a row
-          if ((intensity>>x) & 0x01) {        // set LED if the intensity bit is set
+          if ((intensity >> x) & 0x01) {      // set LED if the intensity bit is set
             setLED(readX + x, y, 1);
           }
           else {
@@ -374,16 +373,16 @@ void loop() {
 
   }
 
-  if (now - prevTime >= 30) {
+  if (now - prevTime >= 33) {
     if (trellis.readSwitches()) {
       readKeys();
     }
 
-    // write display overy 30ms or so; if we write in processSerial() then fast serial access will hang arduino
-    trellis.writeDisplay();
-
     prevTime = now;
-  }
 
-  delay(1);
+    // write display overy 30ms or so; if we write in processSerial() then fast serial access will hang arduino
+    // FIXME: but here it breaks if you want to clear display and then set LED...
+    // actually it looks like any trellis access can be problematic
+    trellis.writeDisplay();
+  }
 }
