@@ -3,17 +3,23 @@
 #define NUM_TRELLIS (4)
 #define NUM_KEYS    (NUM_TRELLIS * 16)
 
-Adafruit_Trellis matrix0 = Adafruit_Trellis();
-Adafruit_Trellis matrix1 = Adafruit_Trellis();
-Adafruit_Trellis matrix2 = Adafruit_Trellis();
-Adafruit_Trellis matrix3 = Adafruit_Trellis();
+Adafruit_Trellis matrixes[] = {
+  Adafruit_Trellis(),
+  Adafruit_Trellis(),
+  Adafruit_Trellis(),
+  Adafruit_Trellis()
+};
 
-Adafruit_TrellisSet trellis = Adafruit_TrellisSet(&matrix0, &matrix1, &matrix2, &matrix3);
-
-unsigned long prevTime;
+Adafruit_TrellisSet trellis = Adafruit_TrellisSet(&matrixes[0], &matrixes[1], &matrixes[2], &matrixes[3]);
 
 String deviceID  = "monome";
 String serialNum = "m1000009";
+
+unsigned long prevReadTime  = 0;
+unsigned long prevWriteTime = 0;
+uint8_t matrixIdx           = 0;
+
+static bool ledBuffer[8][8];
 
 // these functions are from Adafruit_UNTZtrument.h
 static const uint8_t PROGMEM
@@ -59,25 +65,17 @@ void i2xy(uint8_t i, uint8_t *x, uint8_t *y) {
 }
 
 void setLED(int x, int y, int v) {
-  if (v > 0) {
-    trellis.setLED(xy2i(x, y));
-  }
-  else {
-    trellis.clrLED(xy2i(x, y));
+  if (x >= 0 && x < 8 && y >= 0 && y < 8) {
+    ledBuffer[x][y] = v;
   }
 }
 
-void setAllLEDs(int v) {
+void setAllLEDs(int value) {
   uint8_t i, j;
 
   for (i = 0; i < 8; i++) {
     for (j = 0; j < 8; j++) {
-      if (v >= 1) {
-        trellis.setLED(xy2i(i, j));
-      }
-      else {
-        trellis.clrLED(xy2i(i, j));
-      }
+      ledBuffer[i][j] = value;
     }
   }
 }
@@ -96,8 +94,7 @@ void setup() {
   // set by testing button offsets...
   trellis.begin(0x71, 0x70, 0x73, 0x72);
 
-  turnOffLEDs();
-  trellis.writeDisplay();
+  setAllLEDs(0);
 }
 
 uint8_t readInt() {
@@ -206,11 +203,11 @@ void processSerial() {
       readX = readInt();
       readY = readInt();
 
-      if (readX == 8 && NUM_KEYS > 64) break; // trying to set an 8x16 grid on a pad with only 64 keys
       if (readY != 0) break;                  // since we only have 8 LEDs in a column, no offset
 
       for (y = 0; y < 8; y++) {               // each i will be a row
         intensity = readInt();                // read one byte of 8 bits on/off
+
         for (x = 0; x < 8; x++) {             // for 8 LEDs on a row
           if ((intensity >> x) & 0x01) {      // set LED if the intensity bit is set
             setLED(readX + x, y, 1);
@@ -363,6 +360,27 @@ void readKeys() {
   }
 }
 
+void readKeysSingle(uint8_t matrixIdx) {
+  uint8_t x, y;
+
+  for (uint8_t i = 0; i < 16; i++) {
+    if (matrixes[matrixIdx].justPressed(i)) {
+      i2xy(i + matrixIdx * 16, &x, &y);
+
+      writeInt(0x21);
+      writeInt(x);
+      writeInt(y);
+    }
+    else if (matrixes[matrixIdx].justReleased(i)) {
+      i2xy(i + matrixIdx * 16, &x, &y);
+
+      writeInt(0x20);
+      writeInt(x);
+      writeInt(y);
+    }
+  }
+}
+
 void loop() {
   unsigned long now = millis();
 
@@ -370,19 +388,38 @@ void loop() {
     do {
       processSerial();
     } while (Serial.available() > 16);
-
   }
+  else if (now - prevWriteTime >= 30) {
+    for (x = 0; x < 8; x++) {
+      for (y = 0; y < 8; y++) {
+        if (ledBuffer[x][y]) {
+          trellis.setLED(xy2i(x, y));
+        }
+        else {
+          trellis.clrLED(xy2i(x, y));
+        }
+      }
+    }
 
-  if (now - prevTime >= 33) {
+    // write matrix by matrix - all at one can lead to serial buffer overflow because it takes few ms
+    // matrixes[matrixIdx].writeDisplay();
+    // matrixIdx = (matrixIdx + 1) % 4;
+
+    trellis.writeDisplay();
+
+    prevWriteTime = now;
+  // }
+  // else if (now - prevReadTime >= 50) {
     if (trellis.readSwitches()) {
       readKeys();
     }
 
-    prevTime = now;
+    // if (matrixes[matrixIdx].readSwitches()) {
+    //   readKeysSingle(matrixIdx);
+    // }
 
-    // write display overy 30ms or so; if we write in processSerial() then fast serial access will hang arduino
-    // FIXME: but here it breaks if you want to clear display and then set LED...
-    // actually it looks like any trellis access can be problematic
-    trellis.writeDisplay();
+    // readKeys();
+
+    prevReadTime = now;
   }
 }
