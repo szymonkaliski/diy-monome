@@ -16,7 +16,7 @@ static const uint8_t LED_ROW_PIN[NUM_LED_ROWS]       = { 36, 34, 32, 30, 28, 26,
 uint8_t current = 0; // current matrix scan position
 
 String deviceID  = "monome";
-String serialNum = "m1000009";
+String serialNum = "m1000000";
 
 static void setupPins() {
   uint8_t i, j;
@@ -190,16 +190,13 @@ void processSerial() {
       readX = readInt();
       readY = readInt();
 
-      readX >> 3; readX << 3;                 // floor to multiple of 8
-      readY >> 3; readY << 3;
-
       if (readX == 8 && NUM_KEYS > 64) break; // trying to set an 8x16 grid on a pad with only 64 keys
       if (readY != 0) break;                  // since we only have 8 LEDs in a column, no offset
 
       for (y = 0; y < 8; y++) {               // each i will be a row
         intensity = readInt();                // read one byte of 8 bits on/off
         for (x = 0; x < 8; x++) {             // for 8 LEDs on a row
-          if ((intensity>>x) & 0x01) {        // set LED if the intensity bit is set
+          if ((intensity >>x ) & 0x01) {      // set LED if the intensity bit is set
             setLED(readX + x, y, 1);
           }
           else {
@@ -211,7 +208,6 @@ void processSerial() {
 
     case 0x15:
       readX = readInt();                      // led-grid / set row
-      readX >> 3; readX << 3;
       readY = readInt();                      // may be any value
       intensity = readInt();                  // read one byte of 8 bits on/off
 
@@ -229,7 +225,6 @@ void processSerial() {
       readX = readInt();                      // led-grid / column set
       readY = readInt();
 
-      readY >> 3 ; readY << 3;                // floor to multiple of 8
       intensity = readInt();                  // read one byte of 8 bits on/off
       if (readY != 0) break;                  // we only have 8 lights in a column
 
@@ -274,9 +269,6 @@ void processSerial() {
       readX = readInt();
       readY = readInt();
 
-      readX << 3; readX >> 3;
-      readY << 3; readY >> 3;
-
       for (y = 0; y < 8; y++) {
         for (x = 0; x < 8; x++) {
           if ((x + y) % 2 == 0) {             // even bytes, use upper nybble
@@ -305,8 +297,6 @@ void processSerial() {
       readX = readInt();
       readY = readInt();
 
-      readX << 3; readX >> 3;
-
       for (x = 0; x < 8; x++) {
         intensity = readInt();
 
@@ -319,8 +309,6 @@ void processSerial() {
     case 0x1C:                                // set 1x8 column by intensity
       readX = readInt();
       readY = readInt();
-
-      readY << 3; readY >> 3;
 
       for (y = 0; y < 8; y++) {
         intensity = readInt();

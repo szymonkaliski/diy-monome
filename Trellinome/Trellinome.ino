@@ -13,11 +13,10 @@ Adafruit_Trellis matrixes[] = {
 Adafruit_TrellisSet trellis = Adafruit_TrellisSet(&matrixes[0], &matrixes[1], &matrixes[2], &matrixes[3]);
 
 String deviceID  = "monome";
-String serialNum = "m1000009";
+String serialNum = "m1000000";
 
 unsigned long prevReadTime  = 0;
 unsigned long prevWriteTime = 0;
-uint8_t matrixIdx           = 0;
 
 static bool ledBuffer[8][8];
 
@@ -91,7 +90,7 @@ void turnOnLEDs() {
 void setup() {
   Serial.begin(115200);
 
-  // set by testing button offsets...
+  // adjust this if x/y makes no sense on your grid
   trellis.begin(0x71, 0x70, 0x73, 0x72);
 
   setAllLEDs(0);
@@ -105,14 +104,14 @@ void writeInt(uint8_t value) {
   Serial.write(value);
 }
 
-uint8_t identifierSent;                     // command byte sent from controller to matrix
-uint8_t deviceAddress;                      // device address sent from controller
-uint8_t dummy;                              // for reading in data not used by the matrix
-uint8_t intensity = 255;                    // led intensity, ignored
-uint8_t readX, readY;                       // x and y values read from driver
-uint8_t i, x, y;
-
 void processSerial() {
+  uint8_t identifierSent;                     // command byte sent from controller to matrix
+  uint8_t deviceAddress;                      // device address sent from controller
+  uint8_t dummy;                              // for reading in data not used by the matrix
+  uint8_t intensity = 255;                    // led intensity, ignored
+  uint8_t readX, readY;                       // x and y values read from driver
+  uint8_t i, x, y;
+
   identifierSent = Serial.read();             // get command identifier: first byte of packet is identifier in the form: [(a << 4) + b]
                                               // a = section (ie. system, key-grid, digital, encoder, led grid, tilt)
                                               // b = command (ie. query, enable, led, key, frame)
@@ -316,6 +315,9 @@ void processSerial() {
         if (intensity) {
           setLED(readX + x, readY, 1);
         }
+        else {
+          setLED(readX + x, readY, 0);
+        }
       }
       break;
 
@@ -328,6 +330,9 @@ void processSerial() {
 
         if (intensity) {
           setLED(readX, readY + y, 1);
+        }
+        else {
+          setLED(readX, readY + y, 0);
         }
       }
       break;
@@ -360,27 +365,6 @@ void readKeys() {
   }
 }
 
-void readKeysSingle(uint8_t matrixIdx) {
-  uint8_t x, y;
-
-  for (uint8_t i = 0; i < 16; i++) {
-    if (matrixes[matrixIdx].justPressed(i)) {
-      i2xy(i + matrixIdx * 16, &x, &y);
-
-      writeInt(0x21);
-      writeInt(x);
-      writeInt(y);
-    }
-    else if (matrixes[matrixIdx].justReleased(i)) {
-      i2xy(i + matrixIdx * 16, &x, &y);
-
-      writeInt(0x20);
-      writeInt(x);
-      writeInt(y);
-    }
-  }
-}
-
 void loop() {
   unsigned long now = millis();
 
@@ -389,9 +373,10 @@ void loop() {
       processSerial();
     } while (Serial.available() > 16);
   }
-  else if (now - prevWriteTime >= 30) {
-    for (x = 0; x < 8; x++) {
-      for (y = 0; y < 8; y++) {
+  else if (now - prevWriteTime >= 10) {
+    // set trellis internal matrix from ledBuffer
+    for (uint8_t x = 0; x < 8; x++) {
+      for (uint8_t y = 0; y < 8; y++) {
         if (ledBuffer[x][y]) {
           trellis.setLED(xy2i(x, y));
         }
@@ -401,24 +386,16 @@ void loop() {
       }
     }
 
-    // write matrix by matrix - all at one can lead to serial buffer overflow because it takes few ms
-    // matrixes[matrixIdx].writeDisplay();
-    // matrixIdx = (matrixIdx + 1) % 4;
-
+    // update display every ~10ms
     trellis.writeDisplay();
 
     prevWriteTime = now;
-  // }
-  // else if (now - prevReadTime >= 50) {
+  }
+  else if (now - prevReadTime >= 30) {
+    // read switches not more often than every ~30ms - hardware requirement
     if (trellis.readSwitches()) {
       readKeys();
     }
-
-    // if (matrixes[matrixIdx].readSwitches()) {
-    //   readKeysSingle(matrixIdx);
-    // }
-
-    // readKeys();
 
     prevReadTime = now;
   }
