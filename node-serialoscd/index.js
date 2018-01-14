@@ -19,7 +19,7 @@ if (!program.args.length) {
 
 // logging
 
-const log = program.debug ? console.log : "";
+const log = program.debug ? console.log : () => {};
 const stringify = json => JSON.stringify(json, null, 2);
 
 // consts
