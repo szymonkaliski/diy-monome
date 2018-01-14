@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "commander": "^2.13.0",
     "omgosc": "^1.0.0",
     "serialport": "^6.0.4",
     "udp-free-port": "^1.0.0"
