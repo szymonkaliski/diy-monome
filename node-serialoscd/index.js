@@ -27,7 +27,7 @@ const stringify = json => JSON.stringify(json, null, 2);
 const BAUD_RATE = 115200;
 const MASTER_RECEIVER_PORT = 12002;
 const DEVICE = "monome";
-const PREFIX = `/${DEVICE}`;
+const DEFAULT_PREFIX = `/${DEVICE}`;
 
 const HARDWARE_HANDLERS = {
   "/grid/led/set": params => [
@@ -101,6 +101,7 @@ port.on("open", err => {
 
         // store the connection
         connections[oscAddress] = {
+          prefix: DEFAULT_PREFIX,
           sysSender,
           deviceSender,
           receiver,
@@ -153,6 +154,12 @@ port.on("open", err => {
             return;
           }
 
+          if (e.path === "/sys/prefix") {
+            connection.prefix = e.params[0];
+
+            return;
+          }
+
           // dump all the values we have
           if (e.path === "/sys/info") {
             const sysMessages = [
@@ -168,7 +175,11 @@ port.on("open", err => {
                 typetag: "i",
                 params: [connection.deviceOscPort]
               },
-              { path: "/sys/prefix", typetag: "s", params: [PREFIX] },
+              {
+                path: "/sys/prefix",
+                typetag: "s",
+                params: [connection.prefix]
+              },
               { path: "/sys/rotation", typetag: "i", params: [0] }
             ];
 
@@ -181,7 +192,7 @@ port.on("open", err => {
 
           // otherwise handle hardware communications
 
-          const pathWithoutPrefix = e.path.replace(PREFIX, "");
+          const pathWithoutPrefix = e.path.replace(connection.prefix, "");
 
           if (HARDWARE_HANDLERS[pathWithoutPrefix]) {
             const buffer = Buffer.from(
@@ -215,7 +226,9 @@ port.on("data", d => {
 
   // notify all conections
   Object.keys(connections).forEach(key => {
-    connections[key].deviceSender.send(`${PREFIX}/grid/key`, "iii", [
+    const { deviceSender, prefix } = connections[key];
+
+    deviceSender.send(`${prefix}/grid/key`, "iii", [
       parseInt(x),
       parseInt(y),
       msg === "20" ? 0 : 1

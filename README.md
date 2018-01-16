@@ -32,7 +32,7 @@ The official software to communicate with monomes and set up OSC server that oth
 
 I had problems with `serialoscd` that would stop responding when it was flooded with quick messages (for example famous [Meadowphysics](https://monome.org/docs/app/package/) would do that). To work around that I built my own simple nodejs based replacement (that only works with single 8x8 grid): [node-serialoscd](node-serialoscd). You need to `yarn install` and then run it with `node index.js /dev/tty...` (where `/dev/tty...` is mext-compatible device TTY).
 
-The `node-serialoscd` was tested with: `Monome Home.maxpat`, `Meadowphysics.maxpat` and [`node-serialosc`](https://github.com/dinchak/node-serialosc) on macOS 10.13.2.
+The `node-serialoscd` was tested with: `Monome Home.maxpat`, `Meadowphysics.maxpat`, `re:mix` and [`node-serialosc`](https://github.com/dinchak/node-serialosc) on macOS 10.13.2.
 
 ## Case
 
