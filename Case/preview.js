@@ -36,7 +36,7 @@ const geometryFromPolygons = polygons => {
     }
 
     for (let j = 2; j < vertices.length; j++) {
-      face = new Face3(
+      const face = new Face3(
         vertices[0],
         vertices[j - 1],
         vertices[j],
