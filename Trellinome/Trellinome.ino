@@ -101,7 +101,7 @@ void i2xy(uint8_t i, uint8_t *x, uint8_t *y) {
 	if (i > NUM_KEYS) {
 		*x = *y = 255;
 		return;
-	}a
+	}
 	// uint8_t xy = pgm_read_byte(&i2xy64[i]);
 	uint8_t xy = pgm_read_byte((NUM_KEYS == 64) ? &i2xy64[i] : &i2xy128[i]);
 	*x = xy >> 4;
