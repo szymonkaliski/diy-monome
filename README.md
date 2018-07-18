@@ -2,6 +2,8 @@
 
 This repo contains *some* tools for building and running DIY version of [monome](https://monome.org/) 8x8 grid, that's *mostly* compatible with existing monome patches and software.
 
+Trellinome updated for 128 (16x8 grid) and for other configurations like 4x8 or 4x16 grids.
+
 There are actually two projects in this repo: **Sparknome** which is based on four [Sparkfun PCBs](https://www.sparkfun.com/products/8033), and **Trellinome** based on four [Adafruit Trellis boards](https://www.adafruit.com/product/1616). At the moment of writing both boards cost less than 10USD (per board), and both require some soldering (Sparkfun boards need more than Adafruit). I was able to get Trellinome fully working, and Sparknome semi-working due to soldering problems.
 
 ![](assets/boards.jpeg)
