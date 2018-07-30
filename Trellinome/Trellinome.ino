@@ -91,7 +91,7 @@ void setup() {
   Serial.begin(115200);
 
   // adjust this if x/y makes no sense on your grid
-  trellis.begin(0x70, 0x71, 0x72, 0x73);
+  trellis.begin(0x70, 0x71, 0x74, 0x75);
 
   setAllLEDs(0);
 }
