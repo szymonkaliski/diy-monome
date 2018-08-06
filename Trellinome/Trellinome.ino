@@ -347,7 +347,7 @@ void processSerial() {
       }
       break;
       
-    case 0x1A:                                // set 8x8 block
+    case 0x1A:                                // set 8x8 block (aka "quad")
       readX = readInt();
       readY = readInt();
 
@@ -463,7 +463,7 @@ void loop() {
       processSerial();
     } while (Serial.available() > 16);
   }
-  else if (now - prevWriteTime >= 20) {    // needed longer time to get keyscan for 128
+  else if (now - prevWriteTime >= 20) {    // may want to play with this interval
     // set trellis internal matrix from ledBuffer
     for (uint8_t x = 0; x < gridX; x++) {
       for (uint8_t y = 0; y < gridY; y++) {
@@ -477,7 +477,7 @@ void loop() {
     }
 
     // update display every ~10ms
-    trellis.writeDisplay();
+    trellis.writeDisplay(); // can also try putting this at the end of the processSerial case statement
 
     prevWriteTime = now;
   }
@@ -488,5 +488,6 @@ void loop() {
     }
 
     prevReadTime = now;
+    delay(1); // seems to help with keyscan
   }
 }
