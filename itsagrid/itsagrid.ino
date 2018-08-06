@@ -69,7 +69,7 @@ const uint8_t gridX    = (NUM_TRELLIS*2);   // Will be either 8 or 16
 const uint8_t gridY    = 8;                 // standard
 const uint8_t numGrids = (NUM_TRELLIS / 4); //
 uint8_t       offsetX  = 0;                 // offset for 128 only (8x8 can't offset)
-uint8_t       variMonoThresh  = 1;                 // varibright intensity at which led will get set to off
+uint8_t       variMonoThresh  = 4;                 // varibright intensity at which led will get set to off
 
 String deviceID  = "monome";
 String serialNum = "m1000010";
@@ -78,7 +78,7 @@ unsigned long prevReadTime  = 0;
 unsigned long prevWriteTime = 0;
 
 static bool ledBuffer[gridX][gridY];
-
+bool dirtyquad = 0;
 
 // -------
 
@@ -162,6 +162,7 @@ void setLED(int x, int y, int v) {
   if (x >= 0 && x < gridX && y >= 0 && y < gridY) {
     ledBuffer[x][y] = v;
   }
+  dirtyquad = 1;
 }
 
 void setAllLEDs(int value) {
@@ -172,6 +173,7 @@ void setAllLEDs(int value) {
       ledBuffer[i][j] = value;
     }
   }
+  dirtyquad = 1;
 }
 
 void turnOffLEDs() {
@@ -194,9 +196,7 @@ void setup() {
     );
     // trellis.begin(0x70, 0x71, 0x72, 0x73);
 
-	  // HT16K33 supports 400 KHz - but this may break compatibility with other I2C devices?
-    Wire.setClock(400000);
-    setAllLEDs(0);
+    //setAllLEDs(1); // blink leds on at start
     delay(200);
 }
 
@@ -226,7 +226,7 @@ void processSerial() {
   identifierSent = Serial.read();             // get command identifier: first byte of packet is identifier in the form: [(a << 4) + b]
                                               // a = section (ie. system, key-grid, digital, encoder, led grid, tilt)
                                               // b = command (ie. query, enable, led, key, frame)
-
+  dirtyquad = 0;
   switch (identifierSent) {
     case 0x00:									// device information
       writeInt((uint8_t)0x00);                // system/query response 0x00 -> 0x00
@@ -295,20 +295,24 @@ void processSerial() {
       readX = readInt();
       readY = readInt();
       setLED(readX, readY, 0);
+      
       break;
 
     case 0x11:						// /prefix/led/set x y s
       readX = readInt();
       readY = readInt();
       setLED(readX, readY, 1);
+
       break;
 
     case 0x12:						//
       turnOffLEDs();
+
       break;
 
     case 0x13:						          //  /prefix/led/all s
       turnOnLEDs();
+
       break;
 
     case 0x14:								  // /prefix/led/map x y d[8]
@@ -331,6 +335,7 @@ void processSerial() {
           }
         }
       }
+
       break;
 
     case 0x15:							                  //  /prefix/led/row x y d
@@ -347,6 +352,7 @@ void processSerial() {
           setLED(readX + i, readY, 0);
         }
       }
+
       break;
 
     case 0x16:							                  //  /prefix/led/col x y d
@@ -364,61 +370,75 @@ void processSerial() {
           setLED(readX, i, 0);
         }
       }
+
       break;
 
-    case 0x17:							                  //  /prefix/led/intensity i
-      intensity = readInt();                  // set intensity for entire grid - ignored
+    case 0x17:							                       //  /prefix/led/intensity i
+      intensity = readInt();                       // set brightness for entire grid
+      for (i=0; i<NUM_KEYS; i++) {                 // check all keys
+        if(trellis.isLED(i)) {                     // if LED is on
+             if(intensity==0) trellis.clrLED(i);   // turn off if intensity=0
+          }                                        // otherwise leave alone
+      }
+      trellis.setBrightness(intensity);
+      trellis.writeDisplay();
       break;
 
     case 0x18:							                  //  /prefix/led/level/set x y i
       readX = readInt();                      // led-grid / set LED intensity
-      readY = readInt();                      // read the x and y coordinates - value (0-255)
-      intensity = readInt();                  // read the intensity - value (0-255, 0x00-0xFF)
+      readY = readInt();                      // read the x and y coordinates
+      intensity = readInt();                  // read the intensity
 
-      if (intensity > 0) {                    // because monobright, if intensity > 0
+      if (intensity > variMonoThresh) {       // because monobright, if intensity > variMonoThresh
         setLED(readX, readY, 1);              //   set the pixel
       }
       else {
         setLED(readX, readY, 0);              //   otherwise clear the pixel
       }
+
       break;
 
     case 0x19:							                 //  /prefix/led/level/all s
       intensity = readInt();				         // set all leds
-      if (intensity > 0) {
-        turnOnLEDs();
+      
+      if (intensity > variMonoThresh) {
+        setAllLEDs(intensity);
       }
       else {
-        turnOffLEDs();                      // turn off if intensity = 0
+        turnOffLEDs();                       // turn off if intensity = 0
       }
+     
+      break;
 
-    case 0x1A:                             //   /prefix/led/level/map x y d[64]
-     readX = readInt();                    // set 8x8 block
+    case 0x1A:                               //   /prefix/led/level/map x y d[64]
+     readX = readInt();                      // set 8x8 block
      //readX << 3; readX >> 3;
      readY = readInt();
      //readY << 3; readY >> 3;
-     
-      z = 0;
-      for (y = 0; y < 8; y++) {
-        for (x = 0; x < 8; x++) {
-          if (z % 2 == 0) {                    
-            intensity = readInt();
+
+      if (readY == 0){  // only loop if y = 0 since we only have 1 or 2 quads with 64/128 buttons
+        z = 0;
+        for (y = 0; y < 8; y++) {
+          for (x = 0; x < 8; x++) {
+            if (z % 2 == 0) {                    
+              intensity = readInt();
             
-            if ( (intensity >> 4 & 0x0F) > variMonoThresh) {  // even bytes, use upper nybble
-              setLED(readX + x, y, 1);
+              if ( (intensity >> 4 & 0x0F) > variMonoThresh) {  // even bytes, use upper nybble
+                setLED(readX + x, y, 1);
+              }
+              else {
+                setLED(readX + x, y, 0);
+              }
+            } else {                              
+              if ((intensity & 0x0F) > variMonoThresh ) {      // odd bytes, use lower nybble
+                setLED(readX + x, y, 1);
+              }
+              else {
+                setLED(readX + x, y, 0);
+              }
             }
-            else {
-              setLED(readX + x, y, 0);
-            }
-          } else {                              
-            if ((intensity & 0x0F) > variMonoThresh ) {      // odd bytes, use lower nybble
-              setLED(readX + x, y, 1);
-            }
-            else {
-              setLED(readX + x, y, 0);
-            }
+            z++;
           }
-          z++;
         }
       }
       break;
@@ -445,6 +465,7 @@ void processSerial() {
             }
           }
       }
+
       break;
 
     case 0x1C:                                // /prefix/led/level/col x y d[8]
@@ -470,46 +491,24 @@ void processSerial() {
           }
       }
       break;
-
+ 
     default:
       break;
   }
-
+  //if(identifierSent>>4 == 0x01) {  // write changes to Trellis for set LED functions
+                                   //   eliminates multiple calls in switch statement
+    if (dirtyquad){
+      writeLEDbuffer();
+      trellis.writeDisplay(); 
+      dirtyquad = 0;
+    }
+  //}    
   return;
 }
 
-void readKeys() {
-  uint8_t x, y;
 
-  for (uint8_t i = 0; i < NUM_KEYS; i++) {
-    if (trellis.justPressed(i)) {
-      i2xy(i, &x, &y);
-
-      writeInt(0x21);
-      writeInt(x);
-      writeInt(y);
-    }
-    else if (trellis.justReleased(i)) {
-      i2xy(i, &x, &y);
-
-      writeInt(0x20);
-      writeInt(x);
-      writeInt(y);
-    }
-  }
-}
-
-void loop() {
-  unsigned long now = millis();
-
-  if (Serial.available() > 0) {
-    do {
-      processSerial();
-    } while (Serial.available() > 16);
-  }
-  else if (now - prevWriteTime >= 20) {   // needed longer time to get keyscan for 128
-    // set trellis internal matrix from ledBuffer
-    for (uint8_t x = 0; x < gridX; x++) {
+void writeLEDbuffer() {
+   for (uint8_t x = 0; x < gridX; x++) {
       for (uint8_t y = 0; y < gridY; y++) {
         if (ledBuffer[x][y]) {
           trellis.setLED(xy2i(x, y));
@@ -518,19 +517,48 @@ void loop() {
           trellis.clrLED(xy2i(x, y));
         }
       }
+    }     
+}
+
+void readKeys() {
+  uint8_t x, y;
+
+  for (uint8_t i = 0; i < NUM_KEYS; i++) {
+    if (trellis.justPressed(i)) {
+      i2xy(i, &x, &y);
+      writeInt(0x21);
+      writeInt(x);
+      writeInt(y);
+      //setLED(x, y, 1);
     }
-
-    // update display every ~10ms
-    trellis.writeDisplay();
-
-    prevWriteTime = now;
+    else if (trellis.justReleased(i)) {
+      i2xy(i, &x, &y);
+      writeInt(0x20);
+      writeInt(x);
+      writeInt(y);
+      //setLED(x, y, 0);
+    }
   }
-  else if (now - prevReadTime >= 30) {
-    // read switches not more often than every ~30ms - hardware requirement
-    if (trellis.readSwitches()) {
+}
+
+void loop() {
+  unsigned long now = millis();
+  if (Serial.available() > 0) {
+    do { processSerial();  } 
+    while (Serial.available() > 16);
+  }
+  if (now - prevReadTime >= 30) {
+    // read switches not more often than every ~30ms - hardware requirement (???)
+    if (trellis.readSwitches() > 0) {
       readKeys();
-    }
-
+     }
+ 
     prevReadTime = now;
+    delay(1);
   }
+//    if (now - prevWriteTime >= 20) {     
+//      // update display every ~10ms   
+//      prevWriteTime = now;
+//    }
+ 
 }

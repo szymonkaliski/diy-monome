@@ -1,12 +1,51 @@
 /*------------------------------------------------------------------------
-Trellinome by szymonkaliski  https://github.com/szymonkaliski/diy-monome 
+	itsagrid 64/128
 
-Updated 2018-08-03 for 128 button grids by Steven Noreyko
+	Based on code for Trellinome by szymonkaliski  https://github.com/szymonkaliski/diy-monome 
+	and the Adafruit UNTZtrument - a Trellis button controller.
+	https://github.com/adafruit/Adafruit_UNTZtrument
+  
+	Changing addresses of driver chips with jumpers on each pcb
+	
+	see void setup() below for order of addresses for HOLTEK
+
+	A0 sets the lowest bit with a value of 1 
+	A1 sets the middle bit with a value of 2
+	A2 sets the high bit with a value of 4
+	The final address is 0x70 + A2 + A1 + A0. 
+
+	1	-					0x70
+	2	A0					0x71
+	3	A1					0x72
+	4	A0+A1 				0x73
+	5	A2					0x74
+	6	A0+A2 				0x75
+	7	A1+A2 				0x76
+	8	A0+A1+A2 			0x77
+  
+  4 or 8 Adafruit Trellis (or remix) boards 
+  matrices can be used.  #define NUM_TRELLIS to the number in use.
+
+  Similar in function to Adafruit UNTZ and HellaUNTZ
+  ----> https://www.adafruit.com/products/1919
+  ----> https://www.adafruit.com/products/1999
+
+  Trellis code written by Limor Fried/Ladyada for Adafruit Industries.  
+  UNTZ key code by Phil Burgess for Adafruit Industries
+  Monome emulation written by Mike Barela for Adafruit Industries
+  MIT license, all text above must be included in any redistribution
+  
+  Version X.0  2018-07-29  First Version
   ------------------------------------------------------------------------*/
+// #define DEBUG 1
 
-#include "Adafruit_Trellis.h"
+#include "Adafruit_Trellis.h" // original driver lib - for buttons
+#include "TLC59116.h"         // led driver lib
 
-#define NUM_TRELLIS (4)      // either 4 = 64, 8 = 128
+TLC59116Manager tlcmanager; 
+
+
+#define NUM_TRELLIS (8)    // either 4 = 64, 8 = 128
 #define NUM_KEYS    (NUM_TRELLIS * 16)
 
 Adafruit_Trellis matrixes[NUM_TRELLIS] = {    // Instance matrix using number of Trellises set above
@@ -25,7 +64,7 @@ Adafruit_Trellis matrixes[NUM_TRELLIS] = {    // Instance matrix using number of
 Adafruit_TrellisSet trellis = Adafruit_TrellisSet(
           &matrixes[0], &matrixes[1], &matrixes[2], &matrixes[3]
   #if NUM_TRELLIS > 4
-          ,&matrixes[4], &matrixes[5], &matrixes[6], &matrixes[7]
+					,&matrixes[4], &matrixes[5], &matrixes[6], &matrixes[7]
   #endif
 );
 
@@ -37,12 +76,15 @@ uint8_t       offsetX  = 0;                 // offset for 128 only (8x8 can't of
 uint8_t       variMonoThresh  = 1;                 // varibright intensity at which led will get set to off
 
 String deviceID  = "monome";
-String serialNum = "m1000000";
+String serialNum = "m1000010";
 
 unsigned long prevReadTime  = 0;
 unsigned long prevWriteTime = 0;
 
 static bool ledBuffer[gridX][gridY];
+
+
+// -------
 
 // These functions are from Adafruit_UNTZtrument.h - transplanted here to keep code size low
 // If your code uses encoders, go ahead and use the UNTZtrument library
@@ -118,6 +160,7 @@ void i2xy(uint8_t i, uint8_t *x, uint8_t *y) {
   *x = xy >> 4;
   *y = xy & 15;
 }
+// --------
 
 void setLED(int x, int y, int v) {
   if (x >= 0 && x < gridX && y >= 0 && y < gridY) {
@@ -144,7 +187,11 @@ void turnOnLEDs() {
 }
 
 void setup() {
-  Serial.begin(115200);
+
+	Serial.begin(115200);
+    // inits TLC59116
+    tlcmanager.init(); // uses the options from the definition of tlcmanager 
+
    // Initialize trellis boards - change addresses as needed
     trellis.begin(              // addr is the I2C address of the upper left, upper right, lower left and lower right matrices, respectively
       0x70, 0x71, 0x72, 0x73   // 2x2 arrangement - 64
@@ -152,10 +199,12 @@ void setup() {
       ,0x74, 0x75, 0x76, 0x77   // 4x2 arrangement - 128
     #endif 
     );
+    // trellis.begin(0x70, 0x71, 0x72, 0x73);
 
-  setAllLEDs(0);
-  delay(200);
-
+	  // HT16K33 supports 400 KHz - but this may break compatibility with other I2C devices?
+    Wire.setClock(400000);
+    setAllLEDs(0);
+    delay(200);
 }
 
 uint8_t readInt() {
@@ -163,7 +212,13 @@ uint8_t readInt() {
 }
 
 void writeInt(uint8_t value) {
-  Serial.write(value);
+#if DEBUG
+   //Serial.print(value,HEX);       // For debug, values are written to the serial monitor in Hexidecimal
+   Serial.print(value);       
+   Serial.println(" ");
+#else
+   Serial.write(value);           // standard is to write out the 8 bit value on serial
+#endif
 }
 
 void processSerial() {
@@ -174,18 +229,19 @@ void processSerial() {
   uint8_t readX, readY;                       // x and y values read from driver
   uint8_t i, x, y, z;
 
+
   identifierSent = Serial.read();             // get command identifier: first byte of packet is identifier in the form: [(a << 4) + b]
                                               // a = section (ie. system, key-grid, digital, encoder, led grid, tilt)
                                               // b = command (ie. query, enable, led, key, frame)
 
   switch (identifierSent) {
-    case 0x00:
+    case 0x00:									// device information
       writeInt((uint8_t)0x00);                // system/query response 0x00 -> 0x00
       writeInt((uint8_t)0x01);                // grids
       writeInt((uint8_t)0x01);                // one grid
       break;
 
-    case 0x01:
+    case 0x01:									// device ID string
       writeInt((uint8_t)0x01);
       for (i = 0; i < 32; i++) {              // has to be 32
         if (i < deviceID.length()) {
@@ -206,7 +262,7 @@ void processSerial() {
     case 0x03:
       writeInt((uint8_t)0x02);                // system / request grid offsets
       // writeInt(0);                         // n grid?
-      writeInt((uint8_t)0x00);                // x offset
+      writeInt((uint8_t)0x00);                // x offset - could be 0 or 8 
       writeInt((uint8_t)0x00);                // y offset
       break;
 
@@ -214,12 +270,13 @@ void processSerial() {
       dummy = readInt();                      // system / set grid offset
       readX = readInt();                      // an offset of 8 is valid only for 16 x 8 monome
       readY = readInt();                      // an offset is invalid for y as it's only 8
+      //if(NUM_KEYS > 64 && readX == 8) offsetX = 8; 
       break;
 
     case 0x05:
       writeInt((uint8_t)0x03);                // system / request grid size
-      writeInt((uint8_t)8);
-      writeInt((uint8_t)8);
+      writeInt(gridX);
+      writeInt(gridY);
       break;
 
     case 0x06:
@@ -239,36 +296,39 @@ void processSerial() {
       writeInt((uint8_t)0x0F);                // send serial number
       Serial.print(serialNum);
       break;
-
+      
+	// 0x10-0x1F are for an LED Grid Control.  All bytes incoming, no responses back
     case 0x10:
       readX = readInt();
       readY = readInt();
       setLED(readX, readY, 0);
       break;
 
-    case 0x11:
+    case 0x11:						// /prefix/led/set x y s
       readX = readInt();
       readY = readInt();
       setLED(readX, readY, 1);
       break;
 
-    case 0x12:
+    case 0x12:						//
       turnOffLEDs();
       break;
 
-    case 0x13:
+    case 0x13:						          //  /prefix/led/all s
       turnOnLEDs();
       break;
 
-    case 0x14:
+    case 0x14:								  // /prefix/led/map x y d[8]
       readX = readInt();
       readY = readInt();
-
+	    //readX >> 3; readX << 3;                 // floor to multiple of 8
+	    //readY >> 3; readY << 3;
+	    //if(readX == 8 && NUM_KEYS > 64) break;  // trying to set an 8x16 grid on a pad with only 64 keys
       if (readY != 0) break;                  // since we only have 8 LEDs in a column, no offset
 
       for (y = 0; y < gridY; y++) {           // each i will be a row
         intensity = readInt();                // read one byte of 8 bits on/off
-    
+		
         for (x = 0; x < gridX; x++) {          // for 8 LEDs on a row
           if ((intensity >> x) & 0x01) {      // set LED if the intensity bit is set
             setLED(readX + x, y, 1);
@@ -280,8 +340,9 @@ void processSerial() {
       }
       break;
 
-    case 0x15:
+    case 0x15:							                  //  /prefix/led/row x y d
       readX = readInt();                      // led-grid / set row
+      //readX >> 3; readX << 3;
       readY = readInt();                      // may be any value
       intensity = readInt();                  // read one byte of 8 bits on/off
 
@@ -295,15 +356,15 @@ void processSerial() {
       }
       break;
 
-    case 0x16:
+    case 0x16:							                  //  /prefix/led/col x y d
       readX = readInt();                      // led-grid / column set
       readY = readInt();
+      //readY >> 3 ; readY << 3;                // floor to multiple of 8
       intensity = readInt();                  // read one byte of 8 bits on/off
-
       if (readY != 0) break;                  // we only have 8 lights in a column
 
-      for (i = 0; i < gridY; i++) {               // for the next 8 lights in column
-        if ((intensity >> i) & 0x01) {        // if intensity bit set, light
+      for (i = 0; i < gridY; i++) {           // for the next 8 lights in column
+        if ((intensity >> i) & 0x01) {        // if intensity bit set, light led
           setLED(readX, i, 1);
         }
         else {
@@ -312,76 +373,67 @@ void processSerial() {
       }
       break;
 
-    case 0x17:
-      intensity = readInt();                  // intensity stuff - ignored
-      for (i=0; i<NUM_KEYS; i++) {                 // check all keys
-        if(trellis.isLED(i)) {                     // if LED is on
-             if(intensity==0) trellis.clrLED(i);   // turn off if intensity=0
-          }                                        // otherwise leave alone
-      }
-      trellis.setBrightness(intensity);
-      trellis.writeDisplay();
+    case 0x17:							                  //  /prefix/led/intensity i
+      intensity = readInt();                  // set intensity for entire grid - ignored
       break;
 
-    case 0x18:
+    case 0x18:							                  //  /prefix/led/level/set x y i
       readX = readInt();                      // led-grid / set LED intensity
-      readY = readInt();                      // read the x and y coordinates
-      intensity = readInt();                  // read the intensity value (0-255, 0x00-0xFF)
+      readY = readInt();                      // read the x and y coordinates - value (0-255)
+      intensity = readInt();                  // read the intensity - value (0-255, 0x00-0xFF)
 
-      if (intensity > variMonoThresh) {
-        setLED(readX, readY, 1);
+      if (intensity > 0) {                    // because monobright, if intensity > 0
+        setLED(readX, readY, 1);              //   set the pixel
       }
       else {
-        setLED(readX, readY, 0);
+        setLED(readX, readY, 0);              //   otherwise clear the pixel
       }
       break;
 
-    case 0x19:                                // set all leds
-      intensity = readInt();
-
-      if (intensity > variMonoThresh) {
+    case 0x19:							                 //  /prefix/led/level/all s
+      intensity = readInt();				         // set all leds
+      if (intensity > 0) {
         turnOnLEDs();
       }
       else {
-        turnOffLEDs();
+        turnOffLEDs();                      // turn off if intensity = 0
       }
-      break;
-      
-    case 0x1A:                                // set 8x8 block
-      readX = readInt();
-      readY = readInt();
 
-      if (readY == 0){  // only loop if y = 0 since we only have 1 or 2 quads with 64/128 buttons 
-          z = 0;
-          for (y = 0; y < 8; y++) {
-            for (x = 0; x < 8; x++) {
-              if (z % 2 == 0) {                    
-                intensity = readInt();
+    case 0x1A:                             //   /prefix/led/level/map x y d[64]
+     readX = readInt();                    // set 8x8 block
+     //readX << 3; readX >> 3;
+     readY = readInt();
+     //readY << 3; readY >> 3;
+     
+      z = 0;
+      for (y = 0; y < 8; y++) {
+        for (x = 0; x < 8; x++) {
+          if (z % 2 == 0) {                    
+            intensity = readInt();
             
-                if ( (intensity >> 4 & 0x0F) > variMonoThresh) {  // even bytes, use upper nybble
-                  setLED(readX + x, y, 1);
-                }
-                else {
-                   setLED(readX + x, y, 0);
-                }
-              } else {                              
-                if ((intensity & 0x0F) > variMonoThresh ) {      // odd bytes, use lower nybble
-                  setLED(readX + x, y, 1);
-                }
-                else {
-                    setLED(readX + x, y, 0);
-                }
-              }
-              z++;
+            if ( (intensity >> 4 & 0x0F) > variMonoThresh) {  // even bytes, use upper nybble
+              setLED(readX + x, y, 1);
+            }
+            else {
+              setLED(readX + x, y, 0);
+            }
+          } else {                              
+            if ((intensity & 0x0F) > variMonoThresh ) {      // odd bytes, use lower nybble
+              setLED(readX + x, y, 1);
+            }
+            else {
+              setLED(readX + x, y, 0);
             }
           }
+          z++;
+        }
       }
       break;
 
-    case 0x1B:                                // set 8x1 row by intensity
-      readX = readInt();
+    case 0x1B:                                // /prefix/led/level/row x y d[8]
+      readX = readInt();                      // set 8x1 block of led levels, with offset
       readX << 3; readX >> 3;                 // x = x offset, will be floored to multiple of 8 by firmware
-      readY = readInt();
+      readY = readInt();                      // y = y offset
       for (x = 0; x < 8; x++) {
           if (x % 2 == 0) {                    
             intensity = readInt();  
@@ -402,12 +454,11 @@ void processSerial() {
       }
       break;
 
-    case 0x1C:                                // set 1x8 column by intensity
-      readX = readInt();
-      readY = readInt();
+    case 0x1C:                                // /prefix/led/level/col x y d[8]
+      readX = readInt();                      // set 1x8 block of led levels, with offset
+      readY = readInt();                      // x = x offset
       readY << 3; readY >> 3;                 // y = y offset, will be floored to multiple of 8 by firmware
-
-       for (y = 0; y < gridY; y++) {
+      for (y = 0; y < gridY; y++) {
           if (y % 2 == 0) {                    
             intensity = readInt();  
             if ( (intensity >> 4 & 0x0F) > variMonoThresh) {  // even bytes, use upper nybble
@@ -458,12 +509,14 @@ void readKeys() {
 void loop() {
   unsigned long now = millis();
 
+  
+  
   if (Serial.available() > 0) {
     do {
       processSerial();
     } while (Serial.available() > 16);
   }
-  else if (now - prevWriteTime >= 20) {    // needed longer time to get keyscan for 128
+  else if (now - prevWriteTime >= 20) {   // needed longer time to get keyscan for 128
     // set trellis internal matrix from ledBuffer
     for (uint8_t x = 0; x < gridX; x++) {
       for (uint8_t y = 0; y < gridY; y++) {
