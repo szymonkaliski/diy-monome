@@ -38,7 +38,7 @@
 
   This version uses the i2c_t3 Teensy library so the Trellis and TLC59116 libraries 
   need to be modified to use this as well. I copied these to a new version and added 
-  "_i2c_t3" to the names. I'll add these libraries to the repo soon
+  "_i2c_t3" to the names. 
   ------------------------------------------------------------------------*/
 // #define DEBUG 1
 
