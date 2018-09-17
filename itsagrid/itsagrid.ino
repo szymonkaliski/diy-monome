@@ -5,9 +5,9 @@
 	and the Adafruit UNTZtrument - a Trellis button controller.
 	https://github.com/adafruit/Adafruit_UNTZtrument
   
-	Changing addresses of driver chips with jumpers on each pcb
+	Changing addresses of HOLTEK switch driver chips with jumpers on each pcb
 	
-	see void setup() below for order of addresses
+	see void setup() below for order of addresses for HOLTEK
 
 	A0 sets the lowest bit with a value of 1 
 	A1 sets the middle bit with a value of 2
@@ -35,11 +35,12 @@
   Monome emulation written by Mike Barela for Adafruit Industries
   MIT license, all text above must be included in any redistribution
   
-  Version X.0  2018-07-29  First Version
+  Version X.5  2018-08-13  First Version - Monochrome
   ------------------------------------------------------------------------*/
 // #define DEBUG 1
 
 #include "Adafruit_Trellis.h"
+#include <Encoder.h>
  
 #define NUM_TRELLIS (8)    // either 4 = 64, 8 = 128
 #define NUM_KEYS    (NUM_TRELLIS * 16)
@@ -64,21 +65,39 @@ Adafruit_TrellisSet trellis = Adafruit_TrellisSet(
   #endif
 );
 
+// Monome ID
+String deviceID  = "monome";
+String serialNum = "m1000010";
+
 const uint8_t gridNumber = 0x01;            // This code is for Grid #2 (change for > 1 grid)
 const uint8_t gridX    = (NUM_TRELLIS*2);   // Will be either 8 or 16
 const uint8_t gridY    = 8;                 // standard
 const uint8_t numGrids = (NUM_TRELLIS / 4); //
 uint8_t       offsetX  = 0;                 // offset for 128 only (8x8 can't offset)
-uint8_t       variMonoThresh  = 4;                 // varibright intensity at which led will get set to off
-
-String deviceID  = "monome";
-String serialNum = "m1000010";
-
+uint8_t       variMonoThresh  = 3;                 // varibright intensity at which led will get set to off
 unsigned long prevReadTime  = 0;
 unsigned long prevWriteTime = 0;
 
 static bool ledBuffer[gridX][gridY];
 bool dirtyquad = 0;
+
+// HOW MANY ENCODERS?
+const byte numberEncoders = 4;   // The number of encoders
+
+// ENCODER PIN SETUP - use teensy digital pin numbers
+// Avoid using pins with LEDs attached
+// (pin1, pin2,);
+Encoder enc01(2, 3);
+Encoder enc02(5, 6);
+Encoder enc03(8, 9);
+Encoder enc04(11, 12);
+
+Encoder *encoders[numberEncoders] {
+  &enc01,  &enc02,  &enc03,  &enc04
+ };
+long knobs[numberEncoders] {};
+long encposition[]={-999, -999, -999, -999};
+
 
 // -------
 
@@ -491,10 +510,85 @@ void processSerial() {
           }
       }
       break;
+    case 0x50: // ENCODERS ARE 0x5x
+        /* incoming */
+        // CMD_ENCODER_DELTA       = 0x0, 
+        // CMD_ENCODER_SWITCH_UP   = 0x1,
+        // CMD_ENCODER_SWITCH_DOWN = 0x2,
+        // encoder
+/*
+          from device:
+
+          pattern:  /prefix/enc/delta n d
+          desc:   encoder position change
+          serial:   [0x50, n, d]
+          args:   n = encoder number 0-255
+          d = delta (signed char) (-128)-127 (two's comp 8 bit)
+          bytes: 3
+*/
+      break;
+    case 0x51: // ENCODER BUTTON UP [0x51 n] key up
+/*      
+          pattern:  /prefix/enc/key n d
+          desc:   encoder position change
+          serial:   if d = 0 [0x51 n] key up
+                    if d = 1 [0x52 n] key down     
+          args:   n = encoder number 0-255
+          bytes: 2
+
+ */break;
+    case 0x52: // ENCODER BUTTON UP [0x52 n] key down
+      break;
+    case 0x90: // RINGS   /ring/all n a
+       /*
+          0x90 set single led
+          bytes: 4
+          structure: [0x90, n, x, a]
+          n = group number
+          x = led number
+          a = value
+          description: set led x of group n to value a
+              
+        */
+      break;
+    case 0x91: // RINGS  /ring/set n x a
+/*
+          0x91 set all to a
+          bytes: 3
+          structure: [0x91, n, a]
+          n = group number (led ring number)
+          a = value
+          description: set entire group to value a
+ */ 
+      break;
+    case 0x92: // RINGS  /ring/map n d[64]
+ /*
+          0x92 set all values to d (64)
+          bytes: 66
+          structure: [0x92, n, d0..63]
+          n = group number
+          d = array of 64 values
+          description: set all values of group to d (array)
+
+  */
+      break;
+    case 0x93: // RINGS  /ring/line n x1 x2 a
+/*
+          0x93 set range of elements to a
+          bytes: 5
+          structure: [0x93, n, x1, x2, a]
+          n = group number
+          x1 = start position
+          x2 = end position
+          a = value
+          description: set range x1-x2 (inclusive) to a. wrapping supported, ie. set range 60,4 would set values 60,61,62,63,0,1,2,3,4. always positive direction sweep. ie. 4,10 = 4,5,6,7,8,9,10 whereas 10,4 = 10,11,12,13...63,0,1,2,3,4 
+ */
+      break;
  
     default:
       break;
   }
+
   //if(identifierSent>>4 == 0x01) {  // write changes to Trellis for set LED functions
                                    //   eliminates multiple calls in switch statement
     if (dirtyquad){
@@ -518,6 +612,38 @@ void writeLEDbuffer() {
         }
       }
     }     
+}
+
+void readEncs(){
+  for (byte i = 0; i < numberEncoders; i++) {
+    int encvalue = encoders[i]->read();
+    if (encvalue < -128) {
+        encoders[i]->write(-128);
+        encvalue = 0;
+    }
+    if (encvalue > 127) {
+        encoders[i]->write(127);
+        encvalue = 127;
+    }
+    knobs[i] = encvalue;
+    
+    //did an encoder move?
+    if (encvalue != encposition[i]) {
+//      Serial.print("Encoder changed: ");
+//      Serial.print(i);
+//      Serial.print("=");
+//      Serial.print(encvalue);
+//      Serial.println();
+
+      encposition[i] = knobs[i];
+      // send data
+      writeInt(0x50);
+      writeInt(i); // write encoder #
+      //x=(~y)+1 ??
+      writeInt(encvalue); // write delta value
+    }
+  } // END FOR # ENCODERS LOOP
+
 }
 
 void readKeys() {
@@ -548,6 +674,7 @@ void loop() {
     while (Serial.available() > 16);
   }
   if (now - prevReadTime >= 30) {
+    
     // read switches not more often than every ~30ms - hardware requirement (???)
     if (trellis.readSwitches() > 0) {
       readKeys();
@@ -555,7 +682,9 @@ void loop() {
  
     prevReadTime = now;
     delay(1);
-  }
+  } 
+  readEncs();
+  
 //    if (now - prevWriteTime >= 20) {     
 //      // update display every ~10ms   
 //      prevWriteTime = now;

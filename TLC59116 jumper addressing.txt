@@ -1,7 +1,8 @@
 TLC59116 jumper addressing
 
-		A3 A2 A1 A0
-0x60	-  -  -  1
+		B3 B2 B1 B0
+0x60	-  -  -  -
+0x60	-  -  -  1 // ???
 0x62	-  -  1  -
 0x63	-  -  1  1
 0x64	-  1  -  -
@@ -9,10 +10,10 @@ TLC59116 jumper addressing
 0x66	-  1  1  -
 0x67	-  1  1  1
 
-0x69	1  -  -  1
-0x6A	1  -  1  -
-0x6B	1  -  1  1
-0x6C	1  1  -  -
+0x69	1  -  -  1	//(SUBADR1, programmable reserved)
+0x6A	1  -  1  -	//(SUBADR2, programmable reserved)
+0x6B	1  -  1  1	//(RESET, reserved)
+0x6C	1  1  -  -	//(SUBADR3, programmable reserved)
 0x6D	1  1  -  1
 0x6E	1  1  1  -
 0x6F	1  1  1  1
@@ -40,3 +41,14 @@ TLC59116 jumper addressing
 {7, 0}, {7, 1}, {7, 2}, {7, 3}, {7, 4}, {7, 5}, {7, 6}, {7, 7}, {7, 8}, {7, 9}, {7, 10}, {7, 11}, {7, 12}, {7, 13}, {7, 14}, {7, 15} 
 }
  
+ 
+ HOLTEK
+ 						
+1 -           0x70
+2 A0          0x71
+3 A1          0x72
+4 A0+A1       0x73
+5 A2          0x74 
+6 A0+A2       0x75
+7 A1+A2       0x76
+8 A0+A1+A2    0x77
