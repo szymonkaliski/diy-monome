@@ -9,9 +9,9 @@ This is not a replacement for official monome grid (which has much nicer hardwar
 
 ## itsagrid 64/128
 
-itsagrid is a fork of the Trellinome portion of the [DIY monome project](https://github.com/szymonkaliski/diy-monome) by szymonkaliski.
+itsagrid started as a fork of the Trellinome portion of the [DIY monome project](https://github.com/szymonkaliski/diy-monome) by szymonkaliski. It's now been extended to use a PWM chip to obtain variable brightness of the LEDs 
 
-Adjacent pcbs are connected via the SDA, SCL, GND, 5V and INT pads on each board  ([learn.adafruit.com/adafruit-trellis-diy-open-source-led-keypad](https://learn.adafruit.com/adafruit-trellis-diy-open-source-led-keypad)). Four pcbs are used for 64 grid, eight for a 128 grid. Each pcb as a set of three jumpers that need to be configured for unique addressing of the driver chips.
+Adjacent pcbs are connected via the SDA, SCL, GND, 5V and INT pads on each board  ([learn.adafruit.com/adafruit-trellis-diy-open-source-led-keypad](https://learn.adafruit.com/adafruit-trellis-diy-open-source-led-keypad)). Four pcbs are used for 64 grid, eight for a 128 grid. Each pcb as a set of jumpers that need to be configured for unique addressing of the driver chips (buttons and leds).
 
 
 ## Arduino & Hardware & Mext
