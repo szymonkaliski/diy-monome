@@ -92,6 +92,8 @@ unsigned long prevReadTime  = 0;
 unsigned long prevWriteTime = 0;
 
 static uint8_t ledBuffer[gridX][gridY];
+uint8_t led_array[128] = { 0 };
+
 bool dirtyquad = 0;
 
 // -------
@@ -299,7 +301,7 @@ void processSerial() {
     case 0x11:            // /prefix/led/set x y [0/1]
       readX = readInt();
       readY = readInt();
-      setLED(readX, readY, 15);
+      setLED(readX, readY, 15);   // probably should have a brightness global or something
 
       break;
 
@@ -326,13 +328,16 @@ void processSerial() {
     
         for (x = 0; x < gridX; x++) {          // for 8 LEDs on a row
           if ((intensity >> x) & 0x01) {      // set LED if the intensity bit is set
-            setLED(readX + x, y, 15);         // no value for intensity here so set it to max
+            writeBufferedLed(readX + x, y, 15);
+            //setLED(readX + x, y, 15);         // no value for intensity here so set it to max
           }
           else {
-            setLED(readX + x, y, 0);
+            writeBufferedLed(readX + x, y, 0);
+            //setLED(readX + x, y, 0);
           }
         }
       }
+      sendBufferedLeds();
 
       break;
 
@@ -391,12 +396,14 @@ void processSerial() {
       intensity = readInt();                  // read the intensity
 
       if (intensity > variMonoThresh) {       // because monobright, if intensity > variMonoThresh
-        setLED(readX, readY, intensity);      //   set the pixel
+        writeBufferedLed(readX, readY, intensity);
+        //setLED(readX, readY, intensity);      //   set the pixel
       }
       else {
-        setLED(readX, readY, 0);              //   otherwise clear the pixel
+        writeBufferedLed(readX, readY, 0);
+        //setLED(readX, readY, 0);              //   otherwise clear the pixel
       }
-     
+      sendBufferedLeds();
       break;
 
     case 0x19:                               //  /prefix/led/level/all s
@@ -521,7 +528,9 @@ void setAllLEDs(int value) {
   uint8_t i, j;
   for (i = 0; i < gridX; i++) {
     for (j = 0; j < gridY; j++) {
-      setLED(i, j, value);
+      led_array[xy2i(i,j)] = value;
+      
+      //setLED(i, j, value);
       //ledBuffer[i][j] = value;
     }
   }
@@ -535,6 +544,19 @@ void turnOffLEDs() {
 void turnOnLEDs() {
   setAllLEDs(15);
 }
+
+void writeBufferedLed(uint8_t x, uint8_t y, uint8_t bright){
+  led_array[xy2i(x,y)] = bright;
+}
+
+void sendBufferedLeds(){  // faster routine to buffer the send to each PWM chip
+  for (uint8_t i = 0; i < NUM_BOARDS; i++){
+    led_boards[i].analogWriteBatch(0, &led_array[i*16], 16);
+  }
+}
+
+
+
 
 void writeLEDbuffer() {   //not using this anymore
    //uint8_t i = 0;
@@ -594,7 +616,7 @@ void loop() {
      }
      
     prevReadTime = now;
-    delay(1);
+    //delay(1);
   }
 //    if (now - prevWriteTime >= 20) {     
 //      // update display every ~10ms   

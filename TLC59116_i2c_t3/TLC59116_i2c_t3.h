@@ -102,6 +102,8 @@ class TLC59116 {
         void begin();
         /*! Set the channel (0-15) to the given brightness value (0-255) */
         void analogWrite(uint8_t channel, uint8_t brightness);
+        
+        void analogWriteBatch(uint8_t start_channel, uint8_t *brightness, uint8_t length);
 
        void writeRegister(uint8_t reg, uint8_t val);
 

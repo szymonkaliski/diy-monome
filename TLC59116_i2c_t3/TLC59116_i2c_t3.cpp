@@ -124,6 +124,14 @@ void TLC59116::analogWrite(uint8_t chan, uint8_t b) {
     writeRegister(TLC59116_PWM0 + (chan & 0x0F), b);
 }
 
+void TLC59116::analogWriteBatch(uint8_t start_channel, uint8_t *brightness, uint8_t length) {
+    Wire.beginTransmission(TLC59116_BASEADDR | (_addr & 0x0F));
+    wiresend((TLC59116_PWM0 + (start_channel & 0x0F)) | 0xA0); // 0xA0 auto-increments brightnesses
+    for (uint8_t i = 0; i < length; i++)
+        wiresend(brightness[i]);
+    Wire.endTransmission();
+} 
+
 void TLC59116::displayNumber(uint8_t number, uint8_t b) {
 
     uint8_t tens = (number / 10) % 10;
