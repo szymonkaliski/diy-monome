@@ -34,7 +34,7 @@
   Monome emulation written by Mike Barela for Adafruit Industries
   MIT license, all text above must be included in any redistribution
   
-  Version 0.6  2018-11-04  
+  Version 0.5  2018-09-16  
 
   This version uses the i2c_t3 Teensy library so the Trellis and TLC59116 libraries 
   need to be modified to use this as well. I copied these to a new version and added 
@@ -179,8 +179,7 @@ void i2xy(uint8_t i, uint8_t *x, uint8_t *y) {
 void setup() {
 
   Serial.begin(115200);
-  Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 2400000);
-  //Wire.setDefaultTimeout(10000); // 10ms
+  Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
   
    // Initialize HOLTEK - change addresses as needed
     trellis.begin(              // addr is the I2C address of the upper left, upper right, lower left and lower right matrices, respectively
@@ -225,6 +224,7 @@ void processSerial() {
   identifierSent = Serial.read();             // get command identifier: first byte of packet is identifier in the form: [(a << 4) + b]
                                               // a = section (ie. system, key-grid, digital, encoder, led grid, tilt)
                                               // b = command (ie. query, enable, led, key, frame)
+  dirtyquad = 0;
   
   switch (identifierSent) {
     case 0x00:                  // device information
@@ -295,27 +295,24 @@ void processSerial() {
       readX = readInt();
       readY = readInt();
       setLED(readX, readY, 0);
+      
       break;
 
     case 0x11:            // /prefix/led/set x y [0/1]
       readX = readInt();
       readY = readInt();
       setLED(readX, readY, 15);   // probably should have a brightness global or something
+
       break;
 
-    case 0x12:            //  /prefix/led/all [0/1]  
-                          // What's happening here that sending the buffer causes problems?
-      //turnOffLEDs();
-      //memset(led_array,0,sizeof(led_array)); // use this to just nuke the whole led_array?
-      //sendBufferedLeds();  // send commands
-      
+    case 0x12:            //  /prefix/led/all [0/1]
+      turnOffLEDs();
+
       break;
 
     case 0x13:                      //  /prefix/led/all [0/1]
-      memset(led_array,0,sizeof(led_array)); // use this to just nuke the whole led_array?
       turnOnLEDs();
-      sendBufferedLeds();  // send commands
-      
+
       break;
 
     case 0x14:                  // /prefix/led/map x y d[8]
@@ -332,13 +329,16 @@ void processSerial() {
         for (x = 0; x < gridX; x++) {          // for 8 LEDs on a row
           if ((intensity >> x) & 0x01) {      // set LED if the intensity bit is set
             writeBufferedLed(readX + x, y, 15);
+            //setLED(readX + x, y, 15);         // no value for intensity here so set it to max
           }
           else {
             writeBufferedLed(readX + x, y, 0);
+            //setLED(readX + x, y, 0);
           }
         }
       }
       sendBufferedLeds();
+
       break;
 
     case 0x15:                                //  /prefix/led/row x y d
@@ -380,15 +380,14 @@ void processSerial() {
       intensity = readInt();                      // set brightness for entire grid
       // this is probably not right
       setAllLEDs(intensity);
-      sendBufferedLeds();  // send commands
       
-        //for (i=0; i<NUM_KEYS; i++) {                 // check all keys
-          //if(trellis.isLED(i)) {                     // if LED is on
-          //     if(intensity==0) trellis.clrLED(i);   // turn off if intensity=0
-          //  }                                        // otherwise leave alone
-        //}
-        //trellis.setBrightness(intensity);
-        //trellis.writeDisplay();
+      for (i=0; i<NUM_KEYS; i++) {                 // check all keys
+        //if(trellis.isLED(i)) {                     // if LED is on
+        //     if(intensity==0) trellis.clrLED(i);   // turn off if intensity=0
+        //  }                                        // otherwise leave alone
+      }
+      //trellis.setBrightness(intensity);
+      //trellis.writeDisplay();
       break;
 
     case 0x18:                                //  /prefix/led/level/set x y i
@@ -414,10 +413,9 @@ void processSerial() {
         setAllLEDs(intensity);
       }
       else {
-        setAllLEDs(0);
-        //turnOffLEDs();                       // turn off if intensity = 0
+        turnOffLEDs();                       // turn off if intensity = 0
       }
-      sendBufferedLeds();  // send commands
+      
       break;
 
     case 0x1A:                               //   /prefix/led/level/map x y d[64]
@@ -433,27 +431,21 @@ void processSerial() {
             if (z % 2 == 0) {                    
               intensity = readInt();
               if ( ((intensity >> 4) & 0x0F) > variMonoThresh) {  // even bytes, use upper nybble
-                writeBufferedLed(readX + x, y, intensity >> 4);
-                //setLED(readX + x, y, intensity >> 4);
+                setLED(readX + x, y, intensity >> 4);
               } else {
-                writeBufferedLed(readX + x, y, 0);
-                //setLED(readX + x, y, 0);
+                setLED(readX + x, y, 0);
               }
             } else {                        
               if ((intensity & 0x0F) > variMonoThresh ) {      // odd bytes, use lower nybble
-                writeBufferedLed(readX + x, y, intensity);
-                //setLED(readX + x, y, intensity);
+                setLED(readX + x, y, intensity);
               } else {
-                writeBufferedLed(readX + x, y, 0);
-                //setLED(readX + x, y, 0);
+                setLED(readX + x, y, 0);
               }
             }
             z++;
           }
         }
       }
-
-      sendBufferedLeds();
       break;
 
     case 0x1B:                                // /prefix/led/level/row x y d[8]
@@ -465,25 +457,21 @@ void processSerial() {
             intensity = readInt();
             
             if ( (intensity >> 4 & 0x0F) > variMonoThresh) {  // even bytes, use upper nybble
-              writeBufferedLed(readX + x, readY, intensity);
-              //setLED(readX + x, readY, intensity);
+              setLED(readX + x, readY, intensity);
             }
             else {
-              writeBufferedLed(readX + x, readY, 0);
-              //setLED(readX + x, readY, 0);
+              setLED(readX + x, readY, 0);
             }
           } else {                              
             if ((intensity & 0x0F) > variMonoThresh ) {      // odd bytes, use lower nybble
-              writeBufferedLed(readX + x, readY, intensity);
-              //setLED(readX + x, readY, intensity);
+              setLED(readX + x, readY, intensity);
             }
             else {
-              writeBufferedLed(readX + x, readY, 0);
-              //setLED(readX + x, readY, 0);
+              setLED(readX + x, readY, 0);
             }
           }
       }
-      sendBufferedLeds();
+      //dirtyquad = true;
       break;
 
     case 0x1C:                                // /prefix/led/level/col x y d[8]
@@ -495,30 +483,31 @@ void processSerial() {
             intensity = readInt();
               
             if ( (intensity >> 4 & 0x0F) > variMonoThresh) {  // even bytes, use upper nybble
-              writeBufferedLed(readX, y, intensity);
-              //setLED(readX, y, intensity);
+              setLED(readX, y, intensity);
             }
             else {
-              writeBufferedLed(readX, y, 0);
-              //setLED(readX, y, 0);
+              setLED(readX, y, 0);
             }
           } else {                              
             if ((intensity & 0x0F) > variMonoThresh ) {      // odd bytes, use lower nybble
-              writeBufferedLed(readX, y, intensity);
-              //setLED(readX, y, intensity);
+              setLED(readX, y, intensity);
             }
             else {
-              writeBufferedLed(readX, y, 0);
-              //setLED(readX, y, 0);
+              setLED(readX, y, 0);
             }
           }
       }
-      sendBufferedLeds();
       break;
  
     default:
       break;
   }
+  /*
+  if(identifierSent>>4 == 0x01) {  // write changes to Trellis for set LED functions
+                                   //   eliminates multiple calls in switch statement    
+    writeLEDbuffer();
+  }
+  */    
 
   return;
 }
@@ -539,11 +528,13 @@ void setAllLEDs(int value) {
   uint8_t i, j;
   for (i = 0; i < gridX; i++) {
     for (j = 0; j < gridY; j++) {
+      led_array[xy2i(i,j)] = value;
+      
       //setLED(i, j, value);
-      led_array[xy2i(i,j)] = value;  // update led array
+      //ledBuffer[i][j] = value;
     }
   }
-  
+  //dirtyquad = true;
 }
 
 void turnOffLEDs() {
@@ -554,7 +545,7 @@ void turnOnLEDs() {
   setAllLEDs(15);
 }
 
-void writeBufferedLed(uint8_t x, uint8_t y, uint8_t bright){  // update led array
+void writeBufferedLed(uint8_t x, uint8_t y, uint8_t bright){
   led_array[xy2i(x,y)] = bright;
 }
 
@@ -565,13 +556,15 @@ void sendBufferedLeds(){  // faster routine to buffer the send to each PWM chip
 }
 
 
+
+
 void writeLEDbuffer() {   //not using this anymore
    //uint8_t i = 0;
    for (uint8_t x = 0; x < gridX; x++) {
       for (uint8_t y = 0; y < gridY; y++) {
 
         // intensity value is stored in ledBuffer[x][y]
-       led_boards[0].analogWrite(xy2i(x, y), ledBuffer[x][y]*8);
+        led_boards[0].analogWrite(xy2i(x, y), ledBuffer[x][y]*8);
         
        /* 
         if (ledBuffer[x][y] > 0) {
