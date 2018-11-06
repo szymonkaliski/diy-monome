@@ -179,6 +179,8 @@ void i2xy(uint8_t i, uint8_t *x, uint8_t *y) {
 void setup() {
 
   Serial.begin(115200);
+  //Serial2.begin(115200); // send to serial 2 pins for debug
+  
   Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 2400000);
   //Wire.setDefaultTimeout(10000); // 10ms
   
@@ -200,7 +202,9 @@ void setup() {
 }
 
 uint8_t readInt() {
-  return Serial.read();
+  uint8_t val = Serial.read();
+  //Serial2.write(val); // send to serial 2 pins for debug
+  return val; 
 }
 
 void writeInt(uint8_t value) {
@@ -225,6 +229,8 @@ void processSerial() {
   identifierSent = Serial.read();             // get command identifier: first byte of packet is identifier in the form: [(a << 4) + b]
                                               // a = section (ie. system, key-grid, digital, encoder, led grid, tilt)
                                               // b = command (ie. query, enable, led, key, frame)
+  
+  //Serial2.write(identifierSent);    // send to serial 2 pins for debug                  
   
   switch (identifierSent) {
     case 0x00:                  // device information
@@ -304,15 +310,12 @@ void processSerial() {
       break;
 
     case 0x12:            //  /prefix/led/all [0/1]  
-                          // What's happening here that sending the buffer causes problems?
-      //turnOffLEDs();
-      //memset(led_array,0,sizeof(led_array)); // use this to just nuke the whole led_array?
-      //sendBufferedLeds();  // send commands
+      turnOffLEDs();
+      sendBufferedLeds();  // send commands
       
       break;
 
     case 0x13:                      //  /prefix/led/all [0/1]
-      memset(led_array,0,sizeof(led_array)); // use this to just nuke the whole led_array?
       turnOnLEDs();
       sendBufferedLeds();  // send commands
       
@@ -382,13 +385,6 @@ void processSerial() {
       setAllLEDs(intensity);
       sendBufferedLeds();  // send commands
       
-        //for (i=0; i<NUM_KEYS; i++) {                 // check all keys
-          //if(trellis.isLED(i)) {                     // if LED is on
-          //     if(intensity==0) trellis.clrLED(i);   // turn off if intensity=0
-          //  }                                        // otherwise leave alone
-        //}
-        //trellis.setBrightness(intensity);
-        //trellis.writeDisplay();
       break;
 
     case 0x18:                                //  /prefix/led/level/set x y i
@@ -433,7 +429,7 @@ void processSerial() {
             if (z % 2 == 0) {                    
               intensity = readInt();
               if ( ((intensity >> 4) & 0x0F) > variMonoThresh) {  // even bytes, use upper nybble
-                writeBufferedLed(readX + x, y, intensity >> 4);
+                writeBufferedLed(readX + x, y, (intensity >> 4) & 0x0F);
                 //setLED(readX + x, y, intensity >> 4);
               } else {
                 writeBufferedLed(readX + x, y, 0);
@@ -441,7 +437,7 @@ void processSerial() {
               }
             } else {                        
               if ((intensity & 0x0F) > variMonoThresh ) {      // odd bytes, use lower nybble
-                writeBufferedLed(readX + x, y, intensity);
+                writeBufferedLed(readX + x, y, intensity & 0x0F);
                 //setLED(readX + x, y, intensity);
               } else {
                 writeBufferedLed(readX + x, y, 0);
@@ -451,9 +447,14 @@ void processSerial() {
             z++;
           }
         }
+        sendBufferedLeds();
+      } else {
+        for (int q = 0; q<32; q++){
+          readInt();
+        }
       }
 
-      sendBufferedLeds();
+      
       break;
 
     case 0x1B:                                // /prefix/led/level/row x y d[8]
@@ -540,7 +541,7 @@ void setAllLEDs(int value) {
   for (i = 0; i < gridX; i++) {
     for (j = 0; j < gridY; j++) {
       //setLED(i, j, value);
-      led_array[xy2i(i,j)] = value;  // update led array
+      led_array[xy2i(i,j)] = value*16;  // update led array
     }
   }
   
@@ -555,7 +556,7 @@ void turnOnLEDs() {
 }
 
 void writeBufferedLed(uint8_t x, uint8_t y, uint8_t bright){  // update led array
-  led_array[xy2i(x,y)] = bright;
+  led_array[xy2i(x,y)] = bright*16;
 }
 
 void sendBufferedLeds(){  // faster routine to buffer the send to each PWM chip
