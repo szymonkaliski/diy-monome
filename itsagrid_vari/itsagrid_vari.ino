@@ -419,7 +419,7 @@ void processSerial() {
     case 0x1A:                               //   /prefix/led/level/map x y d[64]
      readX = readInt();                      // set 8x8 block
      //readX << 3; readX >> 3;
-     readY = readInt();
+     readY = readInt();                      // y offset
      //readY << 3; readY >> 3;
 
       if (readY == 0){  // only loop if y = 0 since we only have 1 or 2 quads with 64/128 buttons
@@ -516,6 +516,83 @@ void processSerial() {
       }
       sendBufferedLeds();
       break;
+
+    // 0x20 and 0x21 are for a Key inputs (grid) - see readKeys() function
+    // 0x3x are digital out
+    // 0x4x are digital line in
+    
+    // 0x5x are encoder
+    case 0x50:    // /prefix/enc/delta n d
+      //bytes: 3
+      //structure: [0x50, n, d]
+      //n = encoder number
+      //  0-255
+      //d = delta
+      //  (-128)-127 (two's comp 8 bit)
+      //description: encoder position change
+      break;
+      
+    case 0x51:    // /prefix/enc/key n d (d=0 key up)
+      //bytes: 2
+      //structure: [0x51, n]
+      //n = encoder number
+      //  0-255
+      //description: encoder switch up
+      break;
+      
+    case 0x52:    // /prefix/enc/key n d (d=1 key down)
+      //bytes: 2
+      //structure: [0x52, n]
+      //n = encoder number
+      //  0-255
+      //description: encoder switch down
+      break;
+
+    // 0x6x are analog in, 0x70 are analog out
+    // 0x80 are tilt
+    
+    // 0x90 variable 64 LED ring 
+    case 0x90:
+      break;
+      //pattern:  /prefix/ring/set n x a
+      //desc:   set led x of ring n to value a
+      //args:   n = ring number
+      //      x = led number
+      //      a = value (0-15)
+      //serial:   [0x90, n, x, a]
+      
+    case 0x91:
+      //pattern:  /prefix/ring/all n a
+      //desc:   set all leds of ring n to a
+      //args:   n = ring number
+      //      a = value
+      //serial:   [0x91, n, a]
+      break;
+      
+    case 0x92:
+      //pattern:  /prefix/ring/map n d[32]
+      //desc:   set leds of ring n to array d
+      //args:   n = ring number
+      //      d[32] = 64 states, 4 bit values, in 32 consecutive bytes
+      //      d[0] (0:3) value 0
+      //      d[0] (4:7) value 1
+      //      d[1] (0:3) value 2
+      //      ....
+      //      d[31] (0:3) value 62
+      //      d[31] (4:7) value 63
+      //serial:   [0x92, n d[32]]
+      break;
+
+    case 0x93:
+       //pattern:  /prefix/ring/range n x1 x2 a
+      //desc:   set leds inclusive from x1 and x2 of ring n to a
+      //args:   n = ring number
+      //      x1 = starting position
+      //      x2 = ending position
+      //      a = value
+      //serial:   [0x93, n, x1, x2, a]
+      //note:   set range x1-x2 (inclusive) to a. wrapping supported, ie. set range 60,4 would set values 60,61,62,63,0,1,2,3,4. always positive direction sweep. ie. 4,10 = 4,5,6,7,8,9,10 whereas 10,4 = 10,11,12,13...63,0,1,2,3,4 
+     break;
  
     default:
       break;
@@ -608,6 +685,10 @@ void readKeys() {
 
     }
   }
+}
+
+void readEncoder() {
+  
 }
 
 void loop() {
