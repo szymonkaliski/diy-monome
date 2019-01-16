@@ -35,7 +35,7 @@ https://github.com/TheKitty/Untz_Monome (MIT License)
 
 ## Libraries
 
-This project uses modified versions of the following
+This project uses versions of the following which have been modified for use with the Teensy i2c_t3 library.
 
 Adafruit Trellis Library
 https://github.com/adafruit/Adafruit_Trellis_Library
