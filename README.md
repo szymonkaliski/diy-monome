@@ -3,7 +3,7 @@
 A DIY version of [monome](https://monome.org/) 8x8 and 16x8 grid instruments, fully compatible with existing monome patches and software.
 
 itsagrid is an adaptation of the 
-[Adafruit Trellis board](https://www.adafruit.com/product/1616) with the a rubber button grid from Livid Instruments (no longer made by Livid) and using a [Teensy 3.2](https://www.pjrc.com/teensy/) microcontroller. The pcb was updated for different buttons spacing, SMD leds, mounting for Teensy, and now variable LED brightness.
+[Adafruit Trellis board](https://www.adafruit.com/product/1616) with the a rubber button grid from Livid Instruments (no longer made by Livid) and using a [Teensy 3.2](https://www.pjrc.com/teensy/) microcontroller. The pcb was redesinged for a larger button spacing, SMD leds, mounting for Teensy, and added a driver chip for variable LED brightness.
 
 
 ## itsagrid varibright
@@ -15,7 +15,9 @@ As with the Trellis boards, adjacent pcbs are connected via the SDA, SCL, GND, 5
 Due to driver chip address limitations in the current design, only 8 boards can be used together for a total of 128 buttons.
 
 
-## Arduino & Hardware & Mext
+## mext
+
+The mext protocol is used for serial communication - the same that is used in most recent monome devices.
 
 See [szymonkaliski's github](https://github.com/szymonkaliski/diy-monome) for more technical details of his build figuring out the mext/OSC communication.
 
