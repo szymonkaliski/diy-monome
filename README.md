@@ -1,6 +1,6 @@
 # itsagrid 64/128 - a DIY monome compatible grid
 
-A DIY version of [monome](https://monome.org/) 8x8 and 16x8 grid instruments, that are  *mostly* compatible with existing monome patches and software.
+A DIY version of [monome](https://monome.org/) 8x8 and 16x8 grid instruments, that are compatible with existing monome patches and software.
 
 itsagrid is an adaptation of the 
 [Adafruit Trellis board](https://www.adafruit.com/product/1616) with the a rubber button grid from Livid Instruments (no longer made by Livid) and using a [Teensy 3.2](https://www.pjrc.com/teensy/) microcontroller. The pcb was updated for different buttons spacing, SMD leds, mounting for Teensy, and now variable LED brightness.
