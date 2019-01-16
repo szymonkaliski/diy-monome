@@ -1,6 +1,9 @@
 MIT License
 
+Portions 
+Copyright (c) 2018 Steven Noreyko
 Copyright (c) 2017 Szymon Kaliski
+Copyright (c) 2015 Mike Barela for Adafruit Industries http://learn.adafruit.co
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

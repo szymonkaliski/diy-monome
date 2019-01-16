@@ -44,8 +44,7 @@
 
 #include <i2c_t3.h>
 #include <TLC59116_i2c_t3.h>
-
-#include "Adafruit_Trellis_i2c_t3.h"
+#include <Adafruit_Trellis_i2c_t3.h>
  
 #define NUM_TRELLIS (8)    // either 4 = 64, 8 = 128
 #define NUM_KEYS    (NUM_TRELLIS * 16)
@@ -77,13 +76,13 @@ Adafruit_TrellisSet trellis = Adafruit_TrellisSet(
 );
 
 String deviceID  = "monome";
-String serialNum = "m1000010"; // this does not get used - teensy serial number is picked up instead
+String serialNum = "m1000010"; // this # does not get used -  serial number from usb_names is picked up instead
 
-const uint8_t gridNumber = 0x01;            // This code is for Grid #2 (change for > 1 grid) ?????
+const uint8_t gridNumber = 0x01;            // ?????
 const uint8_t numGrids = (NUM_TRELLIS / 4); // ????
 
 const uint8_t gridX    = (NUM_TRELLIS*2);   // Will be either 8 or 16
-const uint8_t gridY    = 8;                 // standard
+const uint8_t gridY    = 8;                 // standard for 128
 
 uint8_t       offsetX  = 0;                 // offset for 128 only (8x8 can't offset)
 uint8_t       variMonoThresh  = 0;                 //  intensity at which led will get set to off
@@ -92,7 +91,7 @@ unsigned long prevReadTime  = 0;
 unsigned long prevWriteTime = 0;
 
 static uint8_t ledBuffer[gridX][gridY];
-uint8_t led_array[128] = { 0 };
+uint8_t led_array[256] = { 0 };
 
 bool dirtyquad = 0;
 
@@ -102,6 +101,7 @@ bool dirtyquad = 0;
 // If your code uses encoders, go ahead and use the UNTZtrument library
 // Lookup tables take some PROGMEM size but they make for fast constant-time lookup.
 static const uint8_t PROGMEM
+  // button code map
   i2xy64[] = { // Remap 8x8 TrellisSet button index to column/row
     0x00, 0x10, 0x20, 0x30, 0x01, 0x11, 0x21, 0x31,
     0x02, 0x12, 0x22, 0x32, 0x03, 0x13, 0x23, 0x33,
@@ -128,6 +128,8 @@ static const uint8_t PROGMEM
     0x86, 0x96, 0xA6, 0xB6, 0x87, 0x97, 0xA7, 0xB7,
     0xC4, 0xD4, 0xE4, 0xF4, 0xC5, 0xD5, 0xE5, 0xF5,
     0xC6, 0xD6, 0xE6, 0xF6, 0xC7, 0xD7, 0xE7, 0xF7 },
+
+    // these got remapped for reversed led placement - revert to old array for v4 board
   xy2i64[8][8] = { // Remap [row][col] to Trellis button/LED index
     {  3,  2,  1,  0, 19, 18, 17, 16 },
     {  7,  6,  5,  4, 23, 22, 21, 20 },
@@ -137,7 +139,8 @@ static const uint8_t PROGMEM
     { 39, 38, 37, 36, 55, 54, 53, 52 },
     { 43, 42, 41, 40, 59, 58, 57, 56 },
     { 47, 46, 45, 44, 63, 62, 61, 60 }},
-    
+
+     // these got remapped for reversed led placement - revert to old array for v4 board
   xy2i128[8][16] = {
     {  3,  2,  1,  0, 19, 18, 17, 16,  35, 34, 33, 32, 51, 50, 49, 48 },
     {  7,  6,  5,  4, 23, 22, 21, 20,  39, 38, 37, 36, 55, 54, 53, 52 },
@@ -147,12 +150,37 @@ static const uint8_t PROGMEM
     { 67, 66, 65, 64,  83, 82, 81, 80,  99, 98, 97, 96, 115,114,113,112 },
     { 71, 70, 69, 68,  87, 86, 85, 84, 103,102,101,100, 119,118,117,116 },
     { 75, 74, 73, 72,  91, 90, 89, 88, 107,106,105,104, 123,122,121,120 },
-    { 79, 78, 77, 76,  95, 94, 93, 92, 111,110,109,108, 127,126,125,124 } 
-};  
+    { 79, 78, 77, 76,  95, 94, 93, 92, 111,110,109,108, 127,126,125,124 }},
+
+ xy2i256[16][16] = {
+    {   3, 2, 1, 0,19,18,17,16,35,34,33,32,51,50,49,48 },
+    {   7, 6, 5, 4,23,22,21,20,39,38,37,36,55,54,53,52 },
+    {  11,10, 9, 8,27,26,25,24,43,42,41,40,59,58,57,56 },
+    {  15,14,13,12,31,30,29,28,47,46,45,44,63,62,61,60 },
+    
+    {  67,66,65,64,83,82,81,80, 99, 98, 97, 96,115,114,113,112 },
+    {  71,70,69,68,87,86,85,84,103,102,101,100,119,118,117,116 },
+    {  75,74,73,72,91,90,89,88,107,106,105,104,123,122,121,120 },
+    {  79,78,77,76,95,94,93,92,111,110,109,108,127,126,125,124 },
+  
+    {  131,130,129,128,147,146,145,144,163,162,161,160,179,178,177,176 },
+    {  135,134,133,132,151,150,149,148,167,166,165,164,183,182,181,180 },
+    {  139,138,137,136,155,154,153,152,171,170,169,168,187,186,185,184 },
+    {  143,142,141,140,159,158,157,156,175,174,173,172,191,190,189,188 },
+    
+    {  195,194,193,192,211,210,209,208,227,226,225,224,243,242,241,240 },
+    {  199,198,197,196,215,214,213,212,231,230,229,228,247,246,245,244 },
+    {  203,202,201,200,219,218,217,216,235,234,233,232,251,250,249,248 },
+    {  207,206,205,204,223,222,221,220,239,238,237,236,255,254,253,252 }
+};
 
 
 uint8_t xy2i(uint8_t x, uint8_t y) {
-  if(y > 7) return 255;
+  // get led number from table
+    return pgm_read_byte(&xy2i256[y][x]);
+    
+  /*
+  if(y > 15) return 255;
   if(NUM_KEYS == 64) {
       if(x > 7) return 255;
       return pgm_read_byte(&xy2i64[y][x]);
@@ -160,8 +188,7 @@ uint8_t xy2i(uint8_t x, uint8_t y) {
       if(x > 15) return 255;
       return pgm_read_byte(&xy2i128[y][x]);
   }
-
-//  return pgm_read_byte(&xy2i64[y][x]);
+  */
 }
 
 void i2xy(uint8_t i, uint8_t *x, uint8_t *y) {
@@ -223,6 +250,7 @@ void processSerial() {
   uint8_t dummy;                              // for reading in data not used by the matrix
   uint8_t intensity = 15;                     // default full led intensity
   uint8_t readX, readY;                       // x and y values read from driver
+  uint8_t deviceX, deviceY;                       // x and y device size read from driver
   uint8_t i, x, y, z;
 
 
@@ -243,10 +271,10 @@ void processSerial() {
       writeInt((uint8_t)0x01);
       for (i = 0; i < 32; i++) {              // has to be 32
         if (i < deviceID.length()) {
-          Serial.print(deviceID[i]);
+          Serial.print(deviceID[i]);          // does this do anything?
         }
         else {
-          Serial.print('\0');
+          Serial.print('\0');           // does this do anything?
         }
       }
       break;
@@ -258,14 +286,14 @@ void processSerial() {
       break;
 
     case 0x03:
-      writeInt((uint8_t)0x02);                // system / request grid offsets
-      // writeInt(0);                         // n grid?
-      writeInt((uint8_t)0x00);                // x offset - could be 0 or 8 
-      writeInt((uint8_t)0x00);                // y offset
+      writeInt((uint8_t)0x02);                // system / request grid offsets [0x03]
+      writeInt((uint8_t)0x01);                // n grid number ?
+      //writeInt(8);                // x offset - could be 0 or 8 
+      //writeInt(0);                // y offset
       break;
 
-    case 0x04:
-      dummy = readInt();                      // system / set grid offset
+    case 0x04:                                 // system / set grid offset  [0x04, n, x, y]
+      dummy = readInt();                      // n = grid number
       readX = readInt();                      // an offset of 8 is valid only for 16 x 8 monome
       readY = readInt();                      // an offset is invalid for y as it's only 8
       //if(NUM_KEYS > 64 && readX == 8) offsetX = 8; 
@@ -278,21 +306,21 @@ void processSerial() {
       break;
 
     case 0x06:
-      readX = readInt();                      // system / set grid size - ignored
-      readY = readInt();
+      deviceX = readInt();                      // system / set grid size - ignored
+      deviceY = readInt();
       break;
 
     case 0x07:
       break;                                  // I2C stuff - ignored
 
-    case 0x08:
-      deviceAddress = readInt();              // set addr - ignored
-      dummy = readInt();
+    case 0x08:                               // set addr - ignored
+      deviceAddress = readInt();             // a = ADDR to set
+      dummy = readInt();                     // b = new ADDR value
       break;
 
     case 0x0F:
       writeInt((uint8_t)0x0F);                // send serial number
-      Serial.print(serialNum);
+      Serial.print(serialNum);          // does this do anything?
       break;
       
   // 0x10-0x1F are for an LED Grid Control.  All bytes incoming, no responses back
@@ -417,42 +445,44 @@ void processSerial() {
       break;
 
     case 0x1A:                               //   /prefix/led/level/map x y d[64]
-     readX = readInt();                      // set 8x8 block
+                                             // set 8x8 block
+     readX = readInt();                      // x offset
      //readX << 3; readX >> 3;
      readY = readInt();                      // y offset
      //readY << 3; readY >> 3;
 
-      if (readY == 0){  // only loop if y = 0 since we only have 1 or 2 quads with 64/128 buttons
+      //if (readY == 0){  // only loop if y = 0 since we only have 1 or 2 quads with 64/128 buttons
         z = 0;
         for (y = 0; y < 8; y++) {
           for (x = 0; x < 8; x++) {
             if (z % 2 == 0) {                    
               intensity = readInt();
               if ( ((intensity >> 4) & 0x0F) > variMonoThresh) {  // even bytes, use upper nybble
-                writeBufferedLed(readX + x, y, (intensity >> 4) & 0x0F);
-                //setLED(readX + x, y, intensity >> 4);
+                writeBufferedLed(readX + x, readY + y, (intensity >> 4) & 0x0F);
+                //setLED(readX + x, readY + y, (intensity >> 4) & 0x0F);
               } else {
-                writeBufferedLed(readX + x, y, 0);
-                //setLED(readX + x, y, 0);
+                writeBufferedLed(readX + x, readY + y, 0);
+                //setLED(readX + x, readY + y, 0);
               }
             } else {                        
               if ((intensity & 0x0F) > variMonoThresh ) {      // odd bytes, use lower nybble
-                writeBufferedLed(readX + x, y, intensity & 0x0F);
-                //setLED(readX + x, y, intensity);
+                writeBufferedLed(readX + x, readY + y, intensity & 0x0F);
+                //setLED(readX + x, readY + y, intensity & 0x0F);
               } else {
-                writeBufferedLed(readX + x, y, 0);
-                //setLED(readX + x, y, 0);
+                writeBufferedLed(readX + x, readY + y, 0);
+                //setLED(readX + x, readY + y, 0);
               }
             }
             z++;
           }
         }
         sendBufferedLeds();
+     /*
       } else {
         for (int q = 0; q<32; q++){
           readInt();
         }
-      }
+      }*/
 
       
       break;

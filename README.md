@@ -7,7 +7,7 @@ itsagrid is an adaptation of the
 
 This is not a replacement for official monome grid (which has much nicer hardware), but just a DIY project.
 
-## itsagrid 64/128
+## itsagrid varibright
 
 itsagrid software started as a fork of the Trellinome portion of the [DIY monome project](https://github.com/szymonkaliski/diy-monome) by szymonkaliski. It's now been extended to use a PWM chip to obtain variable brightness of the LEDs 
 
@@ -27,3 +27,19 @@ You can get both `serialosc` and `libmonome` code from [monome github page](http
 ## Case / Panel
 
 Prototype case is laser cut acrylic top and bottom panels and some spacers. Laser files will be posted here.
+
+## References 
+
+https://github.com/szymonkaliski/diy-monome (MIT License)
+https://github.com/TheKitty/Untz_Monome (MIT License)
+
+## Libraries
+
+This project uses modified versions of the following
+
+Adafruit Trellis Library
+https://github.com/adafruit/Adafruit_Trellis_Library
+
+TLC59116 Library by Majenko Technologies
+https://github.com/MajenkoLibraries/TLC59116
+Copyright (c) 2014, Majenko Technologies
