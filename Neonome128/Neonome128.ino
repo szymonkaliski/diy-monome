@@ -65,7 +65,7 @@ void setup() {
   // full brightness bricks arduino, probably a current thing
   for (int x = 0; x < DIM_X / 4; x++) {
     for (int y = 0; y < DIM_Y / 4; y++) {
-      trellis_parts[x][y].pixels.setBrightness(8);
+      trellis_parts[y][x].pixels.setBrightness(8);
     }
   }
 
@@ -91,7 +91,7 @@ void processSerial() {
   uint8_t identifierSent;  // command byte sent from controller to matrix
   uint8_t deviceAddress;   // device address sent from controller
   uint8_t dummy;           // for reading in data not used by the matrix
-  uint8_t intensity = 255; // led intensity, ignored
+  uint8_t intensity = 255; // led intensity
   uint8_t readX, readY;    // x and y values read from driver
   uint8_t i, x, y;
 
@@ -185,19 +185,11 @@ void processSerial() {
     readX = readInt();
     readY = readInt();
 
-    if (readY != 0)
-      break; // since we only have 8 LEDs in a column, no offset
-
     for (y = 0; y < DIM_Y; y++) { // each i will be a row
-      // TODO: intensity!
-      intensity = readInt(); // read one byte of 8 bits on/off
+      intensity = readInt();      // read one byte of 8 bits on/off
 
-      for (x = 0; x < DIM_X; x++) {    // for 8 LEDs on a row
-        if ((intensity >> x) & 0x01) { // set LED if the intensity bit is
-          setLED(readX + x, y, 1);
-        } else {
-          setLED(readX + x, y, 0);
-        }
+      for (x = 0; x < DIM_X; x++) { // for 8 LEDs on a row
+        setLED(readX + x, y, intensity * 0x10101);
       }
     }
     break;
@@ -206,15 +198,10 @@ void processSerial() {
     readX = readInt(); // led-grid / set row
     readY = readInt(); // may be any value
 
-    // TODO: itensity!
     intensity = readInt(); // read one byte of 8 bits on/off
 
-    for (i = 0; i < DIM_X; i++) {    // for the next 8 lights in row
-      if ((intensity >> i) & 0x01) { // if intensity bit set, light
-        setLED(readX + i, readY, 1);
-      } else {
-        setLED(readX + i, readY, 0);
-      }
+    for (i = 0; i < DIM_X; i++) { // for the next 8 lights in row
+      setLED(readX + i, readY, intensity * 0x10101);
     }
     break;
 
@@ -222,49 +209,30 @@ void processSerial() {
     readX = readInt(); // led-grid / column set
     readY = readInt();
 
-    // TODO: itensity!
     intensity = readInt(); // read one byte of 8 bits on/off
 
-    if (readY != 0)
-      break; // we only have 8 lights in a column
-
-    for (i = 0; i < DIM_Y; i++) {    // for the next 8 lights in column
-      if ((intensity >> i) & 0x01) { // if intensity bit set, light
-        setLED(readX, i, 1);
-      } else {
-        setLED(readX, i, 0);
-      }
+    for (i = 0; i < DIM_Y; i++) { // for the next 8 lights in column
+      setLED(readX, i, intensity * 0x10101);
     }
     break;
 
   case 0x17:
-    // TODO: itensity for entire grid!
-    intensity = readInt(); // intensity stuff - ignored
+    // ignoring intensity for entire grid
+    intensity = readInt();
     break;
 
   case 0x18:
-    readX = readInt(); // led-grid / set LED intensity
-    readY = readInt(); // read the x and y coordinates
+    readX = readInt();     // led-grid / set LED intensity
+    readY = readInt();     // read the x and y coordinates
+    intensity = readInt(); // read the intensity value (0-255)
 
-    // TODO: intensity!
-    intensity = readInt(); // read the intensity value (0-255, 0x00-0xFF)
-
-    if (intensity > 0) {
-      setLED(readX, readY, 1);
-    } else {
-      setLED(readX, readY, 0);
-    }
+    setLED(readX, readY, intensity * 0x10101);
     break;
 
   case 0x19: // set all leds
-    // TODO: intensity (0-255)!
     intensity = readInt();
-
-    if (intensity > 0) {
-      turnOnLEDs();
-    } else {
-      turnOffLEDs();
-    }
+    setAllLEDs(intensity * 0x10101);
+    break;
 
   case 0x1A: // set 8x8 block
     readX = readInt();
@@ -272,22 +240,8 @@ void processSerial() {
 
     for (y = 0; y < 8; y++) {
       for (x = 0; x < 8; x++) {
-        if ((x + y) % 2 == 0) { // even bytes, use upper nybble
-          // TODO: intensity
-          intensity = readInt();
-
-          if (intensity >> 4 & 0x0F) {
-            setLED(readX + x, y, 1);
-          } else {
-            setLED(readX + x, y, 0);
-          }
-        } else { // odd bytes, use lower nybble
-          if (intensity & 0x0F) {
-            setLED(readX + x, y, 1);
-          } else {
-            setLED(readX + x, y, 0);
-          }
-        }
+        intensity = readInt();
+        setLED(readX + x, readY + y, intensity * 0x10101);
       }
     }
     break;
@@ -297,14 +251,8 @@ void processSerial() {
     readY = readInt();
 
     for (x = 0; x < 8; x++) {
-      // TODO: intensity
       intensity = readInt();
-
-      if (intensity) {
-        setLED(readX + x, readY, 1);
-      } else {
-        setLED(readX + x, readY, 0);
-      }
+      setLED(readX + x, readY, intensity * 0x10101);
     }
     break;
 
@@ -313,14 +261,8 @@ void processSerial() {
     readY = readInt();
 
     for (y = 0; y < 8; y++) {
-      // TODO: intensity
       intensity = readInt();
-
-      if (intensity) {
-        setLED(readX, readY + y, 1);
-      } else {
-        setLED(readX, readY + y, 0);
-      }
+      setLED(readX, readY + y, intensity * 0x10101);
     }
     break;
 
@@ -336,7 +278,7 @@ void loop() {
   // if (!digitalRead(INT_PIN)) {
   //   for (int x = 0; x < DIM_X / 4; x++) {
   //     for (int y = 0; y < DIM_Y / 4; y++) {
-  //       trellis_parts[x][y].read(false);
+  //       trellis_parts[y][x].read(false);
   //     }
   //   }
   // }
