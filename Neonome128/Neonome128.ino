@@ -2,7 +2,8 @@
 
 #define DIM_X 16
 #define DIM_Y 8
-#define INT_PIN 4
+#define INT_PIN 5
+#define BRIGHTNESS 50
 
 Adafruit_NeoTrellis trellis_parts[DIM_Y / 4][DIM_X / 4] = {
     {Adafruit_NeoTrellis(0x31), Adafruit_NeoTrellis(0x30),
@@ -16,19 +17,20 @@ Adafruit_MultiTrellis trellis((Adafruit_NeoTrellis *)trellis_parts, DIM_Y / 4,
 String deviceID = "neonome";
 String serialNum = "m1000000";
 
-unsigned long prevReadTime = 0;
-unsigned long prevWriteTime = 0;
+uint32_t ledBuffer[DIM_X][DIM_Y];
 
-void setLED(int x, int y, uint32_t value) {
-  trellis.setPixelColor(x, y, value);
-}
+uint32_t prevReadTime = 0;
+uint32_t prevWriteTime = 0;
+uint8_t currentWriteX = 0;
+
+void setLED(uint8_t x, uint8_t y, uint32_t value) { ledBuffer[x][y] = value; }
 
 void setAllLEDs(uint32_t value) {
-  uint16_t x, y;
+  uint8_t x, y;
 
   for (x = 0; x < DIM_X; x++) {
     for (y = 0; y < DIM_Y; y++) {
-      trellis.setPixelColor(x, y, value);
+      ledBuffer[x][y] = value;
     }
   }
 }
@@ -36,22 +38,6 @@ void setAllLEDs(uint32_t value) {
 void turnOffLEDs() { setAllLEDs(0x000000); }
 
 void turnOnLEDs() { setAllLEDs(0xFFFFFF); }
-
-TrellisCallback onTouch(keyEvent e) {
-  int x = e.bit.NUM % DIM_X;
-  int y = e.bit.NUM / DIM_X;
-
-  if (e.bit.EDGE == SEESAW_KEYPAD_EDGE_FALLING) {
-    writeInt(0x21);
-  } else {
-    writeInt(0x20);
-  }
-
-  writeInt(x);
-  writeInt(y);
-
-  return 0;
-}
 
 void setup() {
   Serial.begin(115200);
@@ -63,18 +49,17 @@ void setup() {
   }
 
   // full brightness bricks arduino, probably a current thing
-  for (int x = 0; x < DIM_X / 4; x++) {
-    for (int y = 0; y < DIM_Y / 4; y++) {
-      trellis_parts[y][x].pixels.setBrightness(8);
+  uint8_t x, y;
+  for (x = 0; x < DIM_X / 4; x++) {
+    for (y = 0; y < DIM_Y / 4; y++) {
+      trellis_parts[y][x].pixels.setBrightness(BRIGHTNESS);
     }
   }
 
-  // register button callbacks
-  for (int x = 0; x < DIM_X; x++) {
-    for (int y = 0; y < DIM_Y; y++) {
+  for (x = 0; x < DIM_X; x++) {
+    for (y = 0; y < DIM_Y; y++) {
       trellis.activateKey(x, y, SEESAW_KEYPAD_EDGE_RISING, true);
       trellis.activateKey(x, y, SEESAW_KEYPAD_EDGE_FALLING, true);
-      trellis.registerCallback(x, y, onTouch);
     }
   }
 
@@ -126,9 +111,9 @@ void processSerial() {
     break;
 
   case 0x03:
-    writeInt((uint8_t)0x02);  // system / request grid offsets
-    writeInt((uint8_t)DIM_X); // x offset
-    writeInt((uint8_t)DIM_Y); // y offset
+    writeInt((uint8_t)0x02); // system / request grid offsets
+    writeInt((uint8_t)0);    // x offset
+    writeInt((uint8_t)0);    // y offset
     break;
 
   case 0x04:
@@ -185,10 +170,10 @@ void processSerial() {
     readX = readInt();
     readY = readInt();
 
-    for (y = 0; y < DIM_Y; y++) { // each i will be a row
-      intensity = readInt();      // read one byte of 8 bits on/off
+    for (y = 0; y < 8; y++) { // each i will be a row
+      intensity = readInt();  // read one byte of 8 bits on/off
 
-      for (x = 0; x < DIM_X; x++) { // for 8 LEDs on a row
+      for (x = 0; x < 8; x++) { // for 8 LEDs on a row
         setLED(readX + x, y, intensity * 0x10101);
       }
     }
@@ -200,8 +185,8 @@ void processSerial() {
 
     intensity = readInt(); // read one byte of 8 bits on/off
 
-    for (i = 0; i < DIM_X; i++) { // for the next 8 lights in row
-      setLED(readX + i, readY, intensity * 0x10101);
+    for (x = 0; x < 8; x++) { // for the next 8 lights in row
+      setLED(readX + x, readY, intensity * 0x10101);
     }
     break;
 
@@ -211,8 +196,8 @@ void processSerial() {
 
     intensity = readInt(); // read one byte of 8 bits on/off
 
-    for (i = 0; i < DIM_Y; i++) { // for the next 8 lights in column
-      setLED(readX, i, intensity * 0x10101);
+    for (y = 0; y < 8; y++) { // for the next 8 lights in column
+      setLED(readX, readY + y, intensity * 0x10101);
     }
     break;
 
@@ -274,28 +259,69 @@ void processSerial() {
 }
 
 void loop() {
-  // somehow once the interrupt happens it never goes off?
-  // if (!digitalRead(INT_PIN)) {
-  //   for (int x = 0; x < DIM_X / 4; x++) {
-  //     for (int y = 0; y < DIM_Y / 4; y++) {
-  //       trellis_parts[y][x].read(false);
-  //     }
-  //   }
-  // }
-
   unsigned long now = millis();
+  uint8_t x, y, i, keypad_count;
+
+  if (!digitalRead(INT_PIN)) {
+    for (x = 0; x < DIM_X / 4; x++) {
+      for (y = 0; y < DIM_Y / 4; y++) {
+        keypad_count = trellis_parts[y][x].getKeypadCount();
+
+        keyEventRaw e[keypad_count];
+        trellis_parts[y][x].readKeypad(e, keypad_count);
+
+        for (i = 0; i < keypad_count; i++) {
+          uint8_t xx = e[i].bit.NUM % 4;
+          uint8_t yy = e[i].bit.NUM / 8;
+
+          uint8_t fx = x * 4 + xx;
+          uint8_t fy = y * 4 + yy;
+
+          if (e[i].bit.EDGE == SEESAW_KEYPAD_EDGE_FALLING) {
+            writeInt(0x21);
+          } else {
+            writeInt(0x20);
+          }
+
+          writeInt(fx);
+          writeInt(fy);
+        }
+      }
+    }
+  }
 
   if (Serial.available() > 0) {
     do {
       processSerial();
     } while (Serial.available() > 16);
-  } else if (now - prevWriteTime >= 10) {
-    trellis.show();
-    prevWriteTime = now;
-  } else if (now - prevReadTime >= 20) {
-    trellis.read();
-    prevReadTime = now;
   }
 
-  delay(1);
+  for (y = 0; y < DIM_Y; y++) {
+    trellis.setPixelColor(currentWriteX, y, ledBuffer[currentWriteX][y]);
+  }
+
+  for (y = 0; y < DIM_Y / 4; y++) {
+    trellis_parts[y][currentWriteX / 4].pixels.show();
+  }
+
+  currentWriteX = (currentWriteX + 1) % DIM_X;
+
+  // unoptimised:
+
+  // if (now - prevWriteTime >= 10) {
+  //   // set trellis internal matrix from ledBuffer
+  //   for (uint8_t x = 0; x < DIM_X; x++) {
+  //     for (uint8_t y = 0; y < DIM_Y; y++) {
+  //       trellis.setPixelColor(x, y, ledBuffer[x][y]);
+  //     }
+  //   }
+
+  //   trellis.show();
+  //   prevWriteTime = now;
+  // }
+
+  // if (now - prevReadTime >= 30) {
+  //   trellis.read();
+  //   prevReadTime = now;
+  // }
 }
