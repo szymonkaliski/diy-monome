@@ -21,6 +21,7 @@ uint32_t ledBuffer[DIM_X][DIM_Y];
 
 uint32_t prevReadTime = 0;
 uint32_t prevWriteTime = 0;
+
 uint8_t currentWriteX = 0;
 
 void setLED(uint8_t x, uint8_t y, uint32_t value) { ledBuffer[x][y] = value; }
@@ -40,7 +41,7 @@ void turnOffLEDs() { setAllLEDs(0x000000); }
 void turnOnLEDs() { setAllLEDs(0xFFFFFF); }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(500000);
 
   if (!trellis.begin()) {
     Serial.println("Failed to begin trellis");
@@ -78,7 +79,7 @@ void processSerial() {
   uint8_t dummy;           // for reading in data not used by the matrix
   uint8_t intensity = 255; // led intensity
   uint8_t readX, readY;    // x and y values read from driver
-  uint8_t i, x, y;
+  uint8_t i, x, y, z;
 
   // get command identifier: first byte of packet is identifier in the form:
   // [(a << 4) + b]
@@ -97,9 +98,9 @@ void processSerial() {
     writeInt((uint8_t)0x01);
     for (i = 0; i < 32; i++) { // has to be 32
       if (i < deviceID.length()) {
-        Serial.print(deviceID[i]);
+        Serial.write(deviceID[i]);
       } else {
-        Serial.print('\0');
+        Serial.write((byte)'\0');
       }
     }
     break;
@@ -112,6 +113,7 @@ void processSerial() {
 
   case 0x03:
     writeInt((uint8_t)0x02); // system / request grid offsets
+    writeInt((uint8_t)0);    // n number
     writeInt((uint8_t)0);    // x offset
     writeInt((uint8_t)0);    // y offset
     break;
@@ -223,10 +225,21 @@ void processSerial() {
     readX = readInt();
     readY = readInt();
 
+    z = 0;
+
     for (y = 0; y < 8; y++) {
       for (x = 0; x < 8; x++) {
-        intensity = readInt();
-        setLED(readX + x, readY + y, intensity * 0x10101);
+        if (z % 2 == 0) {
+          // even bytes, read value and use upper nybble
+          intensity = readInt();
+
+          setLED(readX + x, readY + y, (intensity >> 4 & 0x0F) * 0x101010);
+        } else {
+          // odd bytes, use lower nybble
+          setLED(readX + x, readY + y, (intensity & 0x0F) * 0x101010);
+        }
+
+        z++;
       }
     }
     break;
@@ -236,8 +249,15 @@ void processSerial() {
     readY = readInt();
 
     for (x = 0; x < 8; x++) {
-      intensity = readInt();
-      setLED(readX + x, readY, intensity * 0x10101);
+      if (x % 2 == 0) {
+        // even bytes, read value and use upper nybble
+        intensity = readInt();
+
+        setLED(readX + x, readY, (intensity >> 4 & 0x0F) * 0x101010);
+      } else {
+        // odd bytes, use lower nybble
+        setLED(readX + x, readY, (intensity & 0x0F) * 0x101010);
+      }
     }
     break;
 
@@ -246,8 +266,15 @@ void processSerial() {
     readY = readInt();
 
     for (y = 0; y < 8; y++) {
-      intensity = readInt();
-      setLED(readX, readY + y, intensity * 0x10101);
+      if (y % 2 == 0) {
+        // even bytes, read value and use upper nybble
+        intensity = readInt();
+
+        setLED(readX, readY + y, (intensity >> 4 & 0x0F) * 0x101010);
+      } else {
+        // odd bytes, use lower nybble
+        setLED(readX, readY + y, (intensity & 0x0F) * 0x101010);
+      }
     }
     break;
 
@@ -259,36 +286,7 @@ void processSerial() {
 }
 
 void loop() {
-  unsigned long now = millis();
-  uint8_t x, y, i, keypad_count;
-
-  if (!digitalRead(INT_PIN)) {
-    for (x = 0; x < DIM_X / 4; x++) {
-      for (y = 0; y < DIM_Y / 4; y++) {
-        keypad_count = trellis_parts[y][x].getKeypadCount();
-
-        keyEventRaw e[keypad_count];
-        trellis_parts[y][x].readKeypad(e, keypad_count);
-
-        for (i = 0; i < keypad_count; i++) {
-          uint8_t xx = e[i].bit.NUM % 4;
-          uint8_t yy = e[i].bit.NUM / 8;
-
-          uint8_t fx = x * 4 + xx;
-          uint8_t fy = y * 4 + yy;
-
-          if (e[i].bit.EDGE == SEESAW_KEYPAD_EDGE_FALLING) {
-            writeInt(0x21);
-          } else {
-            writeInt(0x20);
-          }
-
-          writeInt(fx);
-          writeInt(fy);
-        }
-      }
-    }
-  }
+  // serial process
 
   if (Serial.available() > 0) {
     do {
@@ -296,32 +294,97 @@ void loop() {
     } while (Serial.available() > 16);
   }
 
-  for (y = 0; y < DIM_Y; y++) {
-    trellis.setPixelColor(currentWriteX, y, ledBuffer[currentWriteX][y]);
+  // hand-made keypad with interrupt:
+  {
+    uint8_t x, y, i, keypad_count;
+
+    if (!digitalRead(INT_PIN)) {
+      for (x = 0; x < DIM_X / 4; x++) {
+        for (y = 0; y < DIM_Y / 4; y++) {
+          keypad_count = trellis_parts[y][x].getKeypadCount();
+
+          keyEventRaw e[keypad_count];
+          trellis_parts[y][x].readKeypad(e, keypad_count);
+
+          for (i = 0; i < keypad_count; i++) {
+            uint8_t xx = e[i].bit.NUM % 4;
+            uint8_t yy = e[i].bit.NUM / 8;
+
+            if (e[i].bit.EDGE == SEESAW_KEYPAD_EDGE_FALLING) {
+              writeInt(0x21);
+            } else {
+              writeInt(0x20);
+            }
+
+            writeInt(x * 4 + xx);
+            writeInt(y * 4 + yy);
+          }
+        }
+      }
+    }
   }
 
-  for (y = 0; y < DIM_Y / 4; y++) {
-    trellis_parts[y][currentWriteX / 4].pixels.show();
-  }
+  // refresh every column one by one:
+  // {
+  //   uint8_t x, y;
 
-  currentWriteX = (currentWriteX + 1) % DIM_X;
+  //   for (y = 0; y < DIM_Y; y++) {
+  //     trellis.setPixelColor(currentWriteX, y, ledBuffer[currentWriteX][y]);
+  //   }
 
-  // unoptimised:
+  //   for (y = 0; y < DIM_Y / 4; y++) {
+  //     trellis_parts[y][currentWriteX / 4].pixels.show();
+  //   }
 
-  // if (now - prevWriteTime >= 10) {
-  //   // set trellis internal matrix from ledBuffer
-  //   for (uint8_t x = 0; x < DIM_X; x++) {
-  //     for (uint8_t y = 0; y < DIM_Y; y++) {
-  //       trellis.setPixelColor(x, y, ledBuffer[x][y]);
+  //   currentWriteX = (currentWriteX + 1) % DIM_X;
+  // }
+
+  // refresh by every four columns:
+  // {
+  //   uint8_t x, y;
+
+  //   for (y = 0; y < DIM_Y; y++) {
+  //     for (x = 0; x < 4; x++) {
+  //       trellis.setPixelColor(currentWriteX * 4 + x, y,
+  //                             ledBuffer[currentWriteX * 4 + x][y]);
   //     }
   //   }
 
-  //   trellis.show();
-  //   prevWriteTime = now;
+  //   for (y = 0; y < DIM_Y / 4; y++) {
+  //     trellis_parts[y][currentWriteX].pixels.show();
+  //   }
+
+  //   currentWriteX = (currentWriteX + 1) % (DIM_X / 4);
   // }
 
-  // if (now - prevReadTime >= 30) {
-  //   trellis.read();
-  //   prevReadTime = now;
+  // timed:
+  // {
+  //   unsigned long now = millis();
+
+  //   if (now - prevWriteTime >= 10) {
+  //     // set trellis internal matrix from ledBuffer
+  //     for (uint8_t x = 0; x < DIM_X; x++) {
+  //       for (uint8_t y = 0; y < DIM_Y; y++) {
+  //         trellis.setPixelColor(x, y, ledBuffer[x][y]);
+  //       }
+  //     }
+
+  //     trellis.show();
+  //     prevWriteTime = now;
+  //   } else if (now - prevReadTime >= 20) {
+  //     trellis.read();
+  //     prevReadTime = now;
+  //   }
   // }
+
+  // unoptimised (show):
+  {
+    for (uint8_t x = 0; x < DIM_X; x++) {
+      for (uint8_t y = 0; y < DIM_Y; y++) {
+        trellis.setPixelColor(x, y, ledBuffer[x][y]);
+      }
+    }
+
+    trellis.show();
+  }
 }
