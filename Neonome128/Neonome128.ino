@@ -41,7 +41,8 @@ void turnOffLEDs() { setAllLEDs(0x000000); }
 void turnOnLEDs() { setAllLEDs(0xFFFFFF); }
 
 void setup() {
-  Serial.begin(500000);
+  Serial.begin(115200);
+  // Serial.begin(500000);
 
   if (!trellis.begin()) {
     Serial.println("Failed to begin trellis");
