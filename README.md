@@ -1,14 +1,23 @@
 # DIY Monome
 
-This repo contains *some* tools for building and running DIY version of [monome](https://monome.org/) 8x8 grid, that's *mostly* compatible with existing monome patches and software.
+This repo contains *some* tools for building and running DIY version of [monome](https://monome.org/) 16x8 / 8x8 grid, that's *mostly* compatible with existing monome patches and software.
 
-There are actually two projects in this repo: **Sparknome** which is based on four [Sparkfun PCBs](https://www.sparkfun.com/products/8033), and **Trellinome** based on four [Adafruit Trellis boards](https://www.adafruit.com/product/1616). At the moment of writing both boards cost less than 10USD (per board), and both require some soldering (Sparkfun boards need more than Adafruit). I was able to get Trellinome fully working, and Sparknome semi-working due to soldering problems.
+There are actually three projects in this repo:
+- **Neonome128** based on [Adafruit NeoTrellis boards](https://www.adafruit.com/product/3954)
+- **Sparknome** which is based on four [Sparkfun PCBs](https://www.sparkfun.com/products/8033)
+- **Trellinome** based on four [Adafruit Trellis boards](https://www.adafruit.com/product/1616)
 
 ![](assets/boards.jpeg)
 
-**Sparknome** on right, **Trellinome** on left
+**Sparknome** on right, **Trellinome** on left.
 
-These boards are not a replacement for official monome build (that is much nicer hardware, and supports variable brightness), but just a DIY project.
+These boards are not a replacement for official monome build (which is much nicer hardware), but just a DIY project.
+
+## Neonome128
+
+Neonome128 was built using Adafruit Feather 32u4. Build was similar to Trellinome, and I followed the official guide for soldering the boards together. I also added interrupt pin.
+
+The Arduino code to drive the display is in [Neonome128](Neonome128) folder.
 
 ## Sparknome
 
@@ -40,4 +49,5 @@ The `node-serialoscd` was tested with: `Monome Home.maxpat`, `Meadowphysics.maxp
 
 To complete the project I designed simple case using [@jscad/csg](https://github.com/jscad/csg.js) and [three.js](https://threejs.org), and 3D printed it. The exported STLs are part of the repo: [Case/data/](Case/data/), but you can also run the code for yourself (look at the `scripts` section of `package.json`).
 
+The case for Neonome128 was designed in [modeler](https://github.com/szymonkaliski/modeler) and is available in [Neonome128Case](Neonome128Case) directory.
 
