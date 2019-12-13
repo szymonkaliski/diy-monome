@@ -15,7 +15,7 @@ These boards are not a replacement for official monome build (which is much nice
 
 ## Neonome128
 
-Neonome128 was built using Adafruit Feather 32u4. Build was similar to Trellinome, and I followed the official guide for soldering the boards together. I also added interrupt pin.
+Neonome128 was built using Teensy 3.2. Build was similar to Trellinome, and I followed the official guide for soldering the boards together.
 
 The Arduino code to drive the display is in [Neonome128](Neonome128) folder.
 
