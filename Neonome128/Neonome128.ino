@@ -58,9 +58,9 @@ TrellisCallback keyCallback(keyEvent evt) {
   uint8_t x = evt.bit.NUM % DIM_X;
   uint8_t y = evt.bit.NUM / DIM_X;
 
-  if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING) {
+  if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_FALLING) {
     Serial.write(0x20);
-  } else if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_FALLING) {
+  } else {
     Serial.write(0x21);
   }
 
@@ -306,35 +306,6 @@ void processSerial() {
   }
 
   return;
-}
-
-void processKeypad() {
-  uint8_t x, y, i, keypad_count;
-
-  if (!digitalRead(INT_PIN)) {
-    for (x = 0; x < DIM_X / 4; x++) {
-      for (y = 0; y < DIM_Y / 4; y++) {
-        keypad_count = trellis_parts[y][x].getKeypadCount();
-
-        keyEventRaw e[keypad_count];
-        trellis_parts[y][x].readKeypad(e, keypad_count);
-
-        for (i = 0; i < keypad_count; i++) {
-          uint8_t xx = e[i].bit.NUM % 4;
-          uint8_t yy = e[i].bit.NUM / 8;
-
-          if (e[i].bit.EDGE == SEESAW_KEYPAD_EDGE_FALLING) {
-            Serial.write(0x21);
-          } else {
-            Serial.write(0x20);
-          }
-
-          Serial.write(x * 4 + xx);
-          Serial.write(y * 4 + yy);
-        }
-      }
-    }
-  }
 }
 
 void processLEDs() {
