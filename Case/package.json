@@ -14,7 +14,7 @@
     "@jscad/csg": "^0.3.7",
     "@jscad/io": "^0.3.12",
     "lodash.times": "^4.3.2",
-    "three": "^0.88.0",
+    "three": "^0.137.0",
     "three-orbitcontrols": "^2.0.0"
   },
   "devDependencies": {
